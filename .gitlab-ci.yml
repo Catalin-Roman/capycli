@@ -1,0 +1,34 @@
+include:
+  - project: 'camelot/support/templates/gitlab-releases-ci-template'
+    ref: 'v1.0.3'
+    file: '/templates/changelog.and.releases.yml'  # not ideal with Python
+    #file: '/templates/changelog.and.releases.pep440.yml'    # better with Python
+  - project: 'camelot/support/templates/python-ci-template'
+    ref: 'v5.8.16'
+    file: '/templates/python.single.yml'
+  - project: 'camelot/support/templates/python-ci-template'
+    ref: 'v5.8.16'
+    file: '/templates/python.publish.yml'
+
+
+variables:
+  # path to source code projects
+  PYTHON_PROJECT_PATH: "."
+  PYTHON_MODULE_NAME: "capycli"
+  PYTHON_TEST_CODE_PATH: "tests"
+  # Disable Code Quality Check
+  ENABLE_CODE_QUALITY_CHECK: "false"
+  SONAR_JOBS_ACTIVE: "true"
+  ENABLE_PYTHON_PRECOMMIT: "True"
+  BASE_IMAGE_REF: "bookworm"
+
+stages:
+  - version
+  - build
+  - package
+  - test
+  - swag
+  - publish
+  - release
+
+
