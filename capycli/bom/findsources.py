@@ -118,6 +118,68 @@ class FindSources(capycli.common.script_base.ScriptBase):
 
         return False
 
+    @staticmethod
+    def github_request(url: str, username: str = "", token: str = "") -> Any:
+        try:
+            headers = {"Accept": "application/json"}
+            if token:
+                headers["Authorization"] = "token " + token
+            if username:
+                headers["Username"] = username
+            response = requests.get(url, headers=headers)
+            if not response.ok:
+                if response.status_code == 429 or \
+                        'rate limit exceeded' in response.reason or \
+                        "API rate limit exceeded" in response.json().get("message"):
+                    print(
+                        Fore.LIGHTYELLOW_EX +
+                        "      Github API rate limit exceeded - wait 60s and retry ... " +
+                        Style.RESET_ALL)
+                    time.sleep(60)
+                    return FindSources.github_request(url, username, token)
+
+            return response.json()
+
+        except Exception as ex:
+            print(
+                Fore.LIGHTYELLOW_EX +
+                "      Error accessing GitHub: " + repr(ex) +
+                Style.RESET_ALL)
+
+            return {}
+
+    @staticmethod
+    def get_repositories(name: str, language: str, username: str = "", token: str = "") -> Any:
+        """Query for GitHub repositories"""
+        query = name + " language:" + language.lower()
+        search_url = "https://api.github.com/search/repositories?q=" + query
+        return FindSources.github_request(search_url, username, token)
+
+    @staticmethod
+    def get_repo_name(github_url: str) -> str:
+        """Extract the GitHub repo name from the specified URL."""
+        # "git://github.com/avoidwork/tiny-lru.git"
+        git = "github.com/"
+        url = github_url.replace(".git", "").replace("#readme", "")[github_url.find(git) + len(git):]
+        split = url.split("/")
+
+        if len(split) > 0:
+            if len(split) > 1:
+                repo_name = split[0] + "/" + split[1]
+            else:
+                # it will give error if len==1 in get_github_info, right GitHub repo name should have at least 2 paths:
+                # {owner}/repo
+                repo_name = ""
+                # repo_name = split[0]
+        else:
+            print(
+                Fore.LIGHTYELLOW_EX +
+                "      Error getting repo name from: " + github_url +
+                Style.RESET_ALL)
+            return ""
+
+        return repo_name
+
     if not sys.version_info < (3, 10):
         get_github_info_type = List[Dict[str, Any]] | Dict[str, Any]
     else:
@@ -146,115 +208,31 @@ class FindSources(capycli.common.script_base.ScriptBase):
            yield viable results,
            e.g. 'api.github.com:443/repos/sw360/capycli'.
         """
-        url = 'api.github.com/repos/'
-        gh_ref = urlparse(github_ref, scheme='no_scheme')
-        if gh_ref.scheme == 'no_scheme':  # interpret @github_ref as OWNER/REPO
-            url += gh_ref.path
-        elif not gh_ref.netloc.endswith('github.com'):
-            raise ValueError(f'{github_ref} is not an expected @github_ref!')
-        elif gh_ref.path.startswith('/repos'):
-            url += gh_ref.path[6:]
-        else:
-            url += gh_ref.path
-        if url.endswith('.git'):
-            url = url[0:-4]
-        url = 'https://' + url.replace('//', '/')
-        repo = {}
-        while 'tags_url' not in repo and 'github.com' in url:
-            repo = GitHubSupport.github_request(url, self.github_name, self.github_token)
-            url = url.rsplit('/', 1)[0]  # remove last path segment
-        if 'tags_url' not in repo:
-            raise ValueError(f"Unable to make @github_ref {github_ref} work!")
-        return repo
-
-    def _get_link_page(self, res: requests.Response, which: str = 'next') -> int:
-        """Fetch only page number from link-header."""
-        try:
-            url = urlparse(res.links[which]['url'])
-            return int(parse_qs(url.query)['page'][0])
-        except KeyError:  # GitHub gave us only one results page
-            return 1
-
-    def get_matching_source_url(self, version: Any, github_ref: str,
-                                version_prefix: Any = None
-                                ) -> str:
-        """Find a URL to download source code from GitHub. We are
-           looking for the source code in @github_ref at @version.
-
-           We expect to match @version to an existing tag in the repo
-           identified by @github_ref. We want to have the source
-           code download URL of that existing tag!
-
-           In order to perform this matching, we must retrieve the tags
-           from GitHub and then analyse them. First, we use
-           get_matching_tag(). If that doesn't yield a positive result,
-           we try to infer a tag for @version, to prevent an exhaustive
-           search over all tags.
-        """
-        try:
-            repo = self._get_github_repo(github_ref)
-        except ValueError as err:
-            print_yellow("      " + str(err))
-            return ""
-
-        tags_url = repo['tags_url'] + '?per_page=100'
-        git_refs_url_tpl = repo['git_refs_url'].replace('{/sha}', '{sha}', 1)
-
-        res = GitHubSupport.github_request(tags_url, self.github_name,
-                                           self.github_token, return_response=True)
-        pages = self._get_link_page(res, 'last')
-        for _ in range(pages):  # we prefer this over "while True"
-            # note: in res.json() we already have the first results page
-            try:
-                tags = [tag for tag in res.json()
-                        if version_prefix is None
-                        or tag['name'].startswith(version_prefix)]
-                source_url = self.get_matching_tag(tags, version, tags_url)
-                if len(source_url) > 0:  # we found what we believe is
-                    return source_url    # the correct source_url
-
-            except (TypeError, KeyError, AttributeError):
-                # res.json() did not give us an iterable of things where
-                # 'name' is a viable index, for instance an error message
-                tags = []
-
-            new_prefixes = self.tag_cache.filter_and_cache(
-                repo['full_name'], version,  # cache key
-                [self.version_regex.split(tag['name'], 1)[0]
-                 for tag in tags
-                 if self.version_regex.search(tag['name']) is not None])
-
-            for prefix in new_prefixes:
-                url = git_refs_url_tpl.format(sha=f'/tags/{prefix}')
-                w_prefix = GitHubSupport.github_request(url, self.github_name,
-                                                        self.github_token)
-                if isinstance(w_prefix, dict):  # exact match
-                    w_prefix = [w_prefix]
-
-                # ORDER BY tag-name-length DESC
-                # Note: it may happen that the GithHubSupport.github_request
-                # returns items without 'ref'
-                by_size = sorted([(len(tag.get('ref', '')), tag) for tag in w_prefix],
-                                 key=lambda x: x[0])
-                w_prefix = [itm[1] for itm in reversed(by_size)]
-
-                transformed_for_get_matching_tags = [
-                    {'name': tag.get('ref', '').replace('refs/tags/', '', 1),
-                     'zipball_url': tag['url'].replace(
-                        '/git/refs/tags/', '/zipball/refs/tags/', 1),
-                     } for tag in w_prefix]
-                source_url = self.get_matching_tag(
-                    transformed_for_get_matching_tags, version, tags_url)
-                if len(source_url) > 0:  # we found what we believe is
-                    return source_url    # the correct source_url
-            try:
-                url = res.links['next']['url']
-                res = GitHubSupport.github_request(url, self.github_name,
-                                                   self.github_token, return_response=True)
-            except KeyError:  # no more result pages
-                break
-        print_yellow("      No matching tag for version " + version + " found")
-        return ""
+        length_per_page = 100
+        page = 1
+        tags: List[Dict[str, Any]] = []
+        tag_url = "https://github.com/"+repository_url+"/refs?type=tag"
+        # tag_url = "https://api.github.com/repos/" + repository_url + "/tags"
+        tmp = FindSources.github_request(tag_url, username, token)
+        tags = tmp['refs'] if 'refs' in tmp else []
+        # print(f"tags: {tags}")
+        # query = "?per_page=%s&page=%s" % (length_per_page, page)
+        # tmp = FindSources.github_request(tag_url + query, username, token)
+        # print(f"page_number: {page}, len_tmp: {len(tmp)}, "
+        #       f"first_tag_info: {tmp[0]['name'] if tmp is not None and len(tmp) > 0 else None}, "
+        #       f"last_tag_info: {tmp[-1]['name'] if tmp is not None and len(tmp) > 0 else None}")
+        # if not isinstance(tmp, list):
+        #     return tags
+        # tags.extend(tmp)
+        # while len(tmp) == length_per_page:
+        #     page += 1
+        #     query = "?per_page=%s&page=%s" % (length_per_page, page)
+        #     tmp = FindSources.github_request(tag_url + query, username, token)
+        #     tags.extend(tmp)
+        #     print(f"page_number: {page}, len_tmp: {len(tmp)}, "
+        #           f"first_tag_info: {tmp[0]['name'] if tmp is not None and len(tmp) > 0 else None}, "
+        #           f"last_tag_info: {tmp[-1]['name'] if tmp is not None and len(tmp) > 0 else None}")
+        return tags
 
     def to_semver_string(self, version: str) -> str:
         """Bring all version information to a format we can compare."""
@@ -276,6 +254,9 @@ class FindSources(capycli.common.script_base.ScriptBase):
         if not component:
             return ""
         component_name = component.name
+        # if component is angular or startswith @, then make the component name GitHub searchable
+        if component_name.startswith("@"):
+            component_name = component_name.replace("@", "", 1)
         language = ""
         for val in component.properties:
             if val.name == "siemens:primaryLanguage":
@@ -287,12 +268,13 @@ class FindSources(capycli.common.script_base.ScriptBase):
             self.github_name, self.github_token)
         if not repositories or repositories.get("total_count", 0) == 0:
             return ""
-        name_match = [r for r in repositories.get("items") if r.get("name", "") == component_name]
+        name_match = [r for r in repositories.get("items") if r.get("name", "") == component_name or r.get("name", "") == component.name]
         if not len(name_match):
-            name_match = [r for r in repositories.get("items") if component_name in r.get("name", "")]
+            name_match = [r for r in repositories.get("items") if component_name in r.get("name", "") or component.name in r.get("name", "")]
         if len(name_match):
             for match in name_match:
-                source_url = self.get_matching_source_url(component.version, match["tags_url"])
+                tag_info = self.github_request(match["tags_url"], self.github_name, self.github_token)
+                source_url = self.get_matching_tag([v for t in tag_info for k,v in t.items() if k=='name'], component.version or "", match["html_url"])
                 if len(name_match) == 1:
                     return source_url
                 elif source_url:
@@ -368,7 +350,7 @@ class FindSources(capycli.common.script_base.ScriptBase):
         """Find a source file URL from repository URL and version information."""
         github_url = github_url.lower()
         if "github.com" not in github_url:
-            # check if non GitHub URL matches github project name format
+            # check if non GitHub URL matches GitHub project name format
             if self.github_project_name_regex.match(github_url):
                 github_url = "github.com/" + github_url
             else:
@@ -379,7 +361,12 @@ class FindSources(capycli.common.script_base.ScriptBase):
 
         if self.verbose:
             print_text("      repo_name:", repo_name)
-        return self.get_matching_source_url(version, repo_name)
+
+        tag_info = self.get_github_info(repo_name, self.github_name, self.github_token)
+        tag_info_checked = self.check_for_github_error(tag_info)
+        if (not github_url.startswith("https://github.com/")) or ("archive/refs/tags" in github_url):
+            github_url = "https://github.com/" + repo_name
+        return self.get_matching_tag(tag_info_checked, version, github_url)
 
     def check_for_github_error(self, tag_info: get_github_info_type) -> List[Dict[str, Any]]:
         """This method was introduced to check the output of
@@ -389,7 +376,7 @@ class FindSources(capycli.common.script_base.ScriptBase):
         raise NotImplementedError(
             "Removed with introduction of get_matchting_source_tag!")
 
-    def get_matching_tag(self, tag_info: List[Dict[str, Any]], version: str, github_url: str,
+    def get_matching_tag(self, tag_info: List[str], version: str, github_url: str,
                          version_prefix: str = "") -> str:
         if not tag_info or (len(tag_info) == 0):
             print(
@@ -403,23 +390,29 @@ class FindSources(capycli.common.script_base.ScriptBase):
 
         for tag in tag_info:
             try:
-                if version_prefix:
-                    name = tag.get("name", "")
-                    if name and name.rpartition("/")[0] != version_prefix:
-                        continue
+                # if version_prefix:
+                #     name = tag.get("name")
+                #     if name and name.rpartition("/")[0] != version_prefix:
+                #         continue
 
                 version_diff = semver.VersionInfo.parse(
-                    self.to_semver_string(tag.get("name", ""))).compare(
-                    self.to_semver_string(version))
+                    self.to_semver_string(tag)).compare(self.to_semver_string(version))
+                    # self.to_semver_string(tag.get("name", None))).compare(self.to_semver_string(version))
             except Exception as e:
-                cname = e.__class__.__name__ if e.__class__ else ""
+                # print(
+                #     Fore.LIGHTYELLOW_EX +
+                #     "      Warning: semver.compare() threw " + e.__class__.__name__ +
+                #     " Exception :" + github_url + " " + version +
+                #     ", released version: " + tag.get("name", None)
+                #     + Style.RESET_ALL)
                 print(
                     Fore.LIGHTYELLOW_EX +
                     "      Warning: semver.compare() threw " + cname +
                     " Exception :" + github_url + " " + version +
-                    ", released version: " + tag.get("name", "")
+                    ", released version: " + tag
                     + Style.RESET_ALL)
-                version_diff = 0 if tag.get("name", "") == version else 2
+                # version_diff = 0 if tag.get("name", None) == version else 2
+                version_diff = 0 if tag == version else 2
             # If versions are equal, version_diff shall be 0.
             # 1 and -1 have different meanings that doesn't be checked below
             if version_diff == 0:
@@ -431,13 +424,14 @@ class FindSources(capycli.common.script_base.ScriptBase):
             return ""
 
         # print("matching_tag", matching_tag)
-        source_url = matching_tag.get("zipball_url", "")
-        if source_url == "":
-            return ""
-        source_url = source_url.replace(
-            "https://api.github.com/repos", "https://github.com").replace(
-                "zipball/refs/tags", "archive/refs/tags")
-        source_url = source_url + ".zip"
+        # source_url = matching_tag.get("zipball_url", "")
+        # if source_url == "":
+        #     return ""
+        # source_url = source_url.replace(
+        #     "https://api.github.com/repos", "https://github.com").replace(
+        #         "zipball/refs/tags", "archive/refs/tags")
+        # source_url = source_url + ".zip"
+        source_url = github_url+"/archive/refs/tags/"+matching_tag+".zip"
 
         return source_url
 
@@ -453,14 +447,26 @@ class FindSources(capycli.common.script_base.ScriptBase):
                 release_details = self.client.get_release(release_id)
                 if release_details:
                     source_url = release_details.get("sourceCodeDownloadurl", "")
+                    if "https://github.com/" in source_url:
+                        if ".git" in source_url:
+                            source_url = source_url.replace(".git", "", 1)
+                            source_url = self.get_github_source_url(source_url, release_details.get("version"))
+                        if "#readme" in source_url:
+                            source_url = source_url.replace("#readme", "", 1)
+                            source_url = self.get_github_source_url(source_url, release_details.get("version"))
+                        if "/tree/" in source_url:
+                            source_url = source_url.split("/tree/")[0]
+                            source_url = self.get_github_source_url(source_url, release_details.get("version"))
                     if self.verbose:
                         print("    getting source url from get from sw360 for release_id " + release_id)
                     if source_url != "":
                         return source_url
                     break
             except SW360Error as ex:
-                if x < 4 and ex.response and ex.response.status_code == requests.codes["bad_gateway"]:
+                if x < 4 and ex.response is not None and ex.response.status_code == requests.codes["bad_gateway"]:
                     time.sleep(5)
+                elif ex.response is not None and ex.response.status_code == requests.codes["not_found"]:
+                    return ""
                 else:
                     raise ex
 
@@ -471,8 +477,18 @@ class FindSources(capycli.common.script_base.ScriptBase):
         if not self.client:
             print_red("  No client!")
             sys.exit(ResultCode.RESULT_ERROR_ACCESSING_SW360)
-
-        release_details = self.client.get_release(release_id)
+        release_details = None
+        for x in range(5):
+            try:
+                release_details = self.client.get_release(release_id)
+                break
+            except SW360Error as ex:
+                if x < 4 and ex.response is not None and ex.response.status_code == requests.codes["bad_gateway"]:
+                    time.sleep(5)
+                elif ex.response is not None and ex.response.status_code == requests.codes["not_found"]:
+                    return ""
+                else:
+                    raise ex
         if not release_details:
             return ""
 
@@ -483,8 +499,19 @@ class FindSources(capycli.common.script_base.ScriptBase):
         if not self.client:
             print_red("  No client!")
             sys.exit(ResultCode.RESULT_ERROR_ACCESSING_SW360)
+        component_details = None
+        for x in range(5):
+            try:
+                component_details = self.client.get_component(component_id)
+                break
+            except SW360Error as ex:
+                if x < 4 and ex.response is not None and ex.response.status_code == requests.codes["bad_gateway"]:
+                    time.sleep(5)
+                elif ex.response is not None and ex.response.status_code == requests.codes["not_found"]:
+                    component_details = None
+                else:
+                    raise ex
 
-        component_details = self.client.get_component(component_id)
         if not component_details:
             return ""
 
@@ -498,8 +525,9 @@ class FindSources(capycli.common.script_base.ScriptBase):
                 if source_url and github in source_url:
                     break
 
-        if source_url and self.verbose:
-            print(f'{source_url} found over component_id {component_id}')
+        if source_url:
+            if self.verbose:
+                print(f'{source_url} found over component_id {component_id}')
 
         if not source_url and "github.com" in component_details.get("homepage", ""):
             source_url = component_details.get("homepage") or ""
@@ -538,7 +566,7 @@ class FindSources(capycli.common.script_base.ScriptBase):
             url = self.get_source_url_from_release(release_id)
             if not url or url == "":
                 component_id = self.get_release_component_id(release_id)
-                # when searching by component, only a github url will be considered.
+                # when searching by component, only a GitHub url will be considered.
                 url = self.find_source_url_from_component(component_id)
                 found_by_component = True
         elif component_id:
@@ -546,9 +574,16 @@ class FindSources(capycli.common.script_base.ScriptBase):
             found_by_component = True
 
         # 2nd try for component only when on github: find again the proper url for the current version.
-        if url and found_by_component and "github.com" in url:
-            url = self.get_github_source_url(url, version)
+        # if url and found_by_component and "github.com" in url:
+        #     url = self.get_github_source_url(url, version)
 
+        # https://github.com/kubernetes/kubernetes/archive/refs/tags/v1.26.11.zip
+        if url and found_by_component and "https://github.com/" in url and "archive/refs/tags/" in url:
+            try_source_file_url = url.split("archive/refs/tags/")[0] + "archive/refs/tags/" + version + ".zip"
+            try_github_lookup = self.is_sourcefile_accessible(try_source_file_url)
+            if not try_github_lookup:
+                print(f'{try_source_file_url} could not be found on github using url: {url}')
+                url = ""
         return url
 
     @staticmethod
@@ -579,9 +614,19 @@ class FindSources(capycli.common.script_base.ScriptBase):
             source_url = None
 
             # skip source URL check for debian components as github url s are invalid for Debian.
-            if str(component.purl).startswith("pkg:deb/debian/") or str(component.bom_ref).startswith("pkg:deb/debian"):
+            if str(component.purl).startswith("pkg:deb/debian") or str(component.bom_ref).startswith("pkg:deb/debian"):
                 print_red("No source code check for debian components!")
                 continue
+
+            # skip source URL check for redhat components as github urls are invalid for rpm.
+            if str(component.purl).startswith("pkg:rpm/redhat") or str(component.bom_ref).startswith("pkg:rpm/redhat"):
+                print_red("No source code check for redhat components!")
+                continue
+
+            # skip source URL check for golang components as github urls are invalid for rpm.
+            # if str(component.purl).startswith("pkg:golang") or str(component.bom_ref).startswith("pkg:golang"):
+            #     print_red("No source code check for golang components!")
+            #     continue
 
             language = ""
             for val in component.properties:
