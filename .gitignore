@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: (c) 2018-2023 Siemens
 # SPDX-License-Identifier: MIT
-
+.venv/
+*.iml
+.idea/
 ## Ignore common Python folders & files
 __pycache__
 capycli.egg-info/

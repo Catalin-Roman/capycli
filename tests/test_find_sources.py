@@ -1,211 +1,29 @@
 # -------------------------------------------------------------------------------
-# Copyright (c) 2022-2025 Siemens
+# Copyright (c) 2022-2024 Siemens
 # All Rights Reserved.
 # Author: thomas.graf@siemens.com, manuel.schaffer@siemens.com
 #
 # SPDX-License-Identifier: MIT
 # -------------------------------------------------------------------------------
 
-import json
 import os
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
-from urllib.parse import urlparse
 
-import requests
 import responses
-from responses import _recorder
 
 import capycli.common.json_support
 import capycli.common.script_base
 from capycli.bom.findsources import FindSources
 from capycli.common.capycli_bom_support import CaPyCliBom, CycloneDxSupport
-from capycli.common.github_support import GitHubSupport
 from capycli.main.result_codes import ResultCode
 from tests.test_base import AppArguments, TestBase
-
-UNITTEST_NO_REF = 'unittest/no-ref'
-
-
-class MockProject:
-    API_PREFIX = 'https://api.github.com/repos'
-
-    def __init__(self, name: str, data: Any) -> None:
-        self.name = name
-        self.data = data
-
-    @property
-    def url(self) -> str:
-        return self.API_PREFIX + '/' + self.name
-
-    @property
-    def html_url(self) -> str:
-        return 'https://github.com/' + self.name
-
-    @property
-    def git_url(self) -> str:
-        return 'git://github.com/' + self.name + '.git'
-
-    @property
-    def tags_url(self) -> str:
-        return self.url + '/tags'
-
-    @property
-    def archive_url(self) -> str:
-        return self.url + '/{archive_format}{/ref}'
-
-    @property
-    def git_refs_url(self) -> str:
-        return self.url + '/git/refs{/sha}'
-
-    @property
-    def api_object(self) -> Dict[str, Any]:
-        """Limited to the values we access ..."""
-        return {
-            'full_name': self.name,
-            'tags_url': self.tags_url,
-            'archive_url': self.archive_url,
-            'git_refs_url': self.git_refs_url,
-        }
-
-    def _as_response(self, data: Any) -> requests.Response:
-        # if isinstance(data, requests.Response):
-        #    return data
-        ret = requests.Response()
-        ret.status_code = 200
-        ret._content = json.dumps(data).encode()
-        return ret
-
-    def mock_github_request(self, url: str, username: str = "",
-                            token: str = "", return_response: bool = False,
-                            allow_redirects: bool = True) -> Any:
-        _url = urlparse(url)
-        result: Any = ''
-        if isinstance(self.data, dict) and 'message' in self.data:
-            result = self.data  # means error
-        elif _url.path.endswith(self.name):
-            result = self.api_object
-        elif _url.path.endswith('/tags'):
-            result = self.data
-        elif '/git/refs/tags/' in _url.path:
-            prefix = _url.path.partition('/git/refs/tags/')[2]
-            result = [{'ref': f'refs/tags/{item["name"]}',
-                       'url': item['zipball_url'].replace('/zipball/refs/tags/',
-                                                          '/git/refs/tags/', 1),
-                       } for item in self.data
-                      if item.get('name', '').startswith(prefix)]
-
-            # Handle special case for response without 'ref'
-            # (remove the 'ref' key from the dict)
-            if UNITTEST_NO_REF in _url.path:
-                result = [{'url': item['zipball_url']
-                           .replace('/zipball/refs/tags/',
-                                    '/git/refs/tags/', 1)} for item in self.data
-                          if item.get('name', '').startswith(prefix)]
-            elif '/zipball/refs/tags/' in _url.path:
-                result = ''
-        try:
-            return self._as_response(result) if return_response else result
-        except UnboundLocalError as err:
-            # you are probably trying to mock a use case we can't mock yet
-            raise ValueError(url) from err
-
-
-GITHUB_PROJECTS = (
-    ('tartley/colorama', [
-        {
-            'name': '0.4.6',
-            'zipball_url': 'https://api.github.com/repos/tartley/colorama/zipball/refs/tags/0.4.6',
-            'tarball_url': 'https://api.github.com/repos/tartley/colorama/tarball/refs/tags/0.4.6',
-            'commit': {
-                'sha': '3de9f013df4b470069d03d250224062e8cf15c49',
-                'url': 'https://api.github.com/repos/tartley/colorama/commits/3de9f013df4b470069d03d250224062e8cf15c49'},  # noqa
-            'node_id': 'MDM6UmVmMTg4OTIyMDk6cmVmcy90YWdzLzAuNC42'}]),
-    ('sindresorhus/into-stream', [
-        {
-            'name': 'v6.0.0',
-            'zipball_url': 'https://api.github.com/repos/sindresorhus/into-stream/zipball/refs/tags/v6.0.0',
-            'tarball_url': 'https://api.github.com/repos/sindresorhus/into-stream/tarball/refs/tags/v6.0.0',
-            'commit': {
-                'sha': '4e07b9f4f84e59de83f2d6b246d945b3f2362ded',
-                'url': 'https://api.github.com/repos/sindresorhus/into-stream/commits/4e07b9f4f84e59de83f2d6b246d945b3f2362ded'},  # noqa
-            'node_id': 'MDM6UmVmMzY1MzMwNDQ6cmVmcy90YWdzL3Y2LjAuMA=='}]),
-    ('python/cpython', [
-        {
-            'name': 'v3.8.0',
-            'zipball_url': 'https://api.github.com/repos/python/cpython/zipball/refs/tags/v3.8.0',
-            'tarball_url': 'https://api.github.com/repos/python/cpython/tarball/refs/tags/v3.8.0',
-            'commit': {
-                'sha': 'fa919fdf2583bdfead1df00e842f24f30b2a34bf',
-                'url': 'https://api.github.com/repos/python/cpython/commits/fa919fdf2583bdfead1df00e842f24f30b2a34bf'},  # noqa
-            'node_id': 'MDM6UmVmODE1OTg5NjE6cmVmcy90YWdzL3YzLjguMA=='}]),
-    ('pypa/something',
-        {
-            'message': 'Not Found',
-            'documentation_url': 'https://docs.github.com/rest/repos/repos#list-repository-tags'}),
-    ('avoidwork/tiny-lru', [
-        {
-            'name': '11.0.1',
-            'zipball_url': 'https://api.github.com/repos/avoidwork/tiny-lru/zipball/refs/tags/11.0.1',
-            'tarball_url': 'https://api.github.com/repos/avoidwork/tiny-lru/tarball/refs/tags/11.0.1',
-            'commit': {
-                'sha': 'a698b7ba6b7b981ee3ab39e3d7903aa1e984777b',
-                'url': 'https://api.github.com/repos/avoidwork/tiny-lru/commits/a698b7ba6b7b981ee3ab39e3d7903aa1e984777b'},  # noqa
-            'node_id': 'MDM6UmVmMTE2ODQxMjU6cmVmcy90YWdzLzExLjAuMQ=='}]),
-    ('pypa/wheel', [
-        {
-            'name': '0.38.4',
-            'zipball_url': 'https://api.github.com/repos/pypa/wheel/zipball/refs/tags/0.38.4',
-            'tarball_url': 'https://api.github.com/repos/pypa/wheel/tarball/refs/tags/0.38.4',
-            'commit': {
-                'sha': '814c2efe8e40051039c5a6de6945e04ecdd162ee',
-                'url': 'https://api.github.com/repos/pypa/wheel/commits/814c2efe8e40051039c5a6de6945e04ecdd162ee'},  # noqa
-            'node_id': 'MDM6UmVmOTgzNDY4ODU6cmVmcy90YWdzLzAuMzguNA=='}]),
-    ('jeremyfa/yaml.js', [
-        {
-            'name': 'v0.3.0',
-            'zipball_url': 'https://api.github.com/repos/jeremyfa/yaml.js/zipball/refs/tags/v0.3.0',
-            'tarball_url': 'https://api.github.com/repos/jeremyfa/yaml.js/tarball/refs/tags/v0.3.0',
-            'commit': {
-                'sha': '51a74dc0c39d78af7c64e12eafef2711f31abb27',
-                'url': 'https://api.github.com/repos/jeremyfa/yaml.js/commits/51a74dc0c39d78af7c64e12eafef2711f31abb27'},  # noqa
-            'node_id': 'MDM6UmVmMTAyMzYzODpyZWZzL3RhZ3MvdjAuMy4w'}]),
-    ('unittest/no-tags', ('it is hard to have a mock that succeeds on project access but'
-                          ' fails on tag access, so we have this unrealistic example instead')),
-    ('autresphere/ASMediaFocusManager', [
-        {
-            "name": "0.6",
-            "zipball_url": "https://api.github.com/repos/autresphere/ASMediaFocusManager/zipball/refs/tags/0.6",
-            "tarball_url": "https://api.github.com/repos/autresphere/ASMediaFocusManager/tarball/refs/tags/0.6",
-            "commit": {
-                "sha": "2e884ed20bc99bd316eb06f17136e3db0e713682",
-                "url": ("https://api.github.com/repos/"
-                        "autresphere/ASMediaFocusManager/commits/2e884ed20bc99bd316eb06f17136e3db0e713682")
-            },
-            "node_id": "MDM6UmVmNzU2MTYyNzpyZWZzL3RhZ3MvMC42"}]),
-    (UNITTEST_NO_REF, [
-        {
-            'name': 'v1.2.3',
-            'zipball_url': f'https://api.github.com/repos/{UNITTEST_NO_REF}/zipball/refs/tags/v1.2.3',
-            'tarball_url': f'https://api.github.com/repos/{UNITTEST_NO_REF}/tarball/refs/tags/v1.2.3',
-            'commit': {
-                'sha': 'dummy_commit_sha',
-                'url': f'https://api.github.com/repos/{UNITTEST_NO_REF}/commits/dummy_commit_sha'},  # noqa
-            'node_id': 'dummy_node_id'}]),
-)
 
 
 class TestFindSources(TestBase):
     INPUT_BAD = "plaintext.txt"
     INPUTFILE = "sbom_for_find_sources.json"
     OUTPUTFILE = "output.json"
-
-    github_projects: Dict[str, MockProject] = {}
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.github_projects = {
-            name: MockProject(name, data) for name, data in GITHUB_PROJECTS}
 
     def test_show_help(self) -> None:
         sut = FindSources()
@@ -267,20 +85,129 @@ class TestFindSources(TestBase):
         except SystemExit as ex:
             self.assertEqual(ResultCode.RESULT_ERROR_READING_BOM, ex.code)
 
-    def mock_github_request_side_effect(self, url: str, username: str = "", token: str = "",
-                                        return_response: bool = False, allow_redirects: bool = True) -> Any:
+    def mock_github_request_side_effect(self, url: str, username: str = "", token: str = "") -> Any:
         # Define different mock responses based on the URL
-        for name, mock in self.github_projects.items():
-            if name in url:
-                return mock.mock_github_request(
-                    url, username, token, return_response, allow_redirects)
-
-        if url == 'https://api.github.com/search/repositories?q=something language:':
+        if url == 'https://api.github.com/repos/tartley/colorama/tags?per_page=100&page=1':
+            return [
+                {
+                    'name': '0.4.6',
+                    'zipball_url': 'https://api.github.com/repos/tartley/colorama/zipball/refs/tags/0.4.6',
+                    'tarball_url': 'https://api.github.com/repos/tartley/colorama/tarball/refs/tags/0.4.6',
+                    'commit': {
+                        'sha': '3de9f013df4b470069d03d250224062e8cf15c49',
+                        'url': 'https://api.github.com/repos/tartley/colorama/commits/3de9f013df4b470069d03d250224062e8cf15c49'},  # noqa
+                    'node_id': 'MDM6UmVmMTg4OTIyMDk6cmVmcy90YWdzLzAuNC42'}]
+        elif url == 'https://api.github.com/repos/sindresorhus/into-stream/tags?per_page=100&page=1':
+            return [
+                {
+                    'name': 'v6.0.0',
+                    'zipball_url': 'https://api.github.com/repos/sindresorhus/into-stream/zipball/refs/tags/v6.0.0',
+                    'tarball_url': 'https://api.github.com/repos/sindresorhus/into-stream/tarball/refs/tags/v6.0.0',
+                    'commit': {
+                        'sha': '4e07b9f4f84e59de83f2d6b246d945b3f2362ded',
+                        'url': 'https://api.github.com/repos/sindresorhus/into-stream/commits/4e07b9f4f84e59de83f2d6b246d945b3f2362ded'},  # noqa
+                    'node_id': 'MDM6UmVmMzY1MzMwNDQ6cmVmcy90YWdzL3Y2LjAuMA=='}]
+        elif url == 'https://api.github.com/repos/python/cpython/tags?per_page=100&page=1':
+            return [
+                {
+                    'name': 'v3.8.0',
+                    'zipball_url': 'https://api.github.com/repos/python/cpython/zipball/refs/tags/v3.8.0',
+                    'tarball_url': 'https://api.github.com/repos/python/cpython/tarball/refs/tags/v3.8.0',
+                    'commit': {
+                        'sha': 'fa919fdf2583bdfead1df00e842f24f30b2a34bf',
+                        'url': 'https://api.github.com/repos/python/cpython/commits/fa919fdf2583bdfead1df00e842f24f30b2a34bf'},  # noqa
+                    'node_id': 'MDM6UmVmODE1OTg5NjE6cmVmcy90YWdzL3YzLjguMA=='}]
+        elif url == 'https://api.github.com/repos/pypa/something/tags?per_page=100&page=1':
+            return {
+                'message': 'Not Found',
+                'documentation_url': 'https://docs.github.com/rest/repos/repos#list-repository-tags'}
+        elif url == 'https://api.github.com/search/repositories?q=something language:':
             return {'total_count': 0}
+        elif url == 'https://api.github.com/repos/avoidwork/tiny-lru/tags?per_page=100&page=1':
+            return [
+                {
+                    'name': '11.0.1',
+                    'zipball_url': 'https://api.github.com/repos/avoidwork/tiny-lru/zipball/refs/tags/11.0.1',
+                    'tarball_url': 'https://api.github.com/repos/avoidwork/tiny-lru/tarball/refs/tags/11.0.1',
+                    'commit': {
+                        'sha': 'a698b7ba6b7b981ee3ab39e3d7903aa1e984777b',
+                        'url': 'https://api.github.com/repos/avoidwork/tiny-lru/commits/a698b7ba6b7b981ee3ab39e3d7903aa1e984777b'},  # noqa
+                    'node_id': 'MDM6UmVmMTE2ODQxMjU6cmVmcy90YWdzLzExLjAuMQ=='}]
+        elif url == 'https://api.github.com/repos/pypa/wheel/tags?per_page=100&page=1':
+            return [
+                {
+                    'name': '0.38.4',
+                    'zipball_url': 'https://api.github.com/repos/pypa/wheel/zipball/refs/tags/0.38.4',
+                    'tarball_url': 'https://api.github.com/repos/pypa/wheel/tarball/refs/tags/0.38.4',
+                    'commit': {
+                        'sha': '814c2efe8e40051039c5a6de6945e04ecdd162ee',
+                        'url': 'https://api.github.com/repos/pypa/wheel/commits/814c2efe8e40051039c5a6de6945e04ecdd162ee'},  # noqa
+                    'node_id': 'MDM6UmVmOTgzNDY4ODU6cmVmcy90YWdzLzAuMzguNA=='}]
+        elif url == 'https://api.github.com/repos/jeremyfa/yaml.js/tags?per_page=100&page=1':
+            return [
+                {
+                    'name': 'v0.3.0',
+                    'zipball_url': 'https://api.github.com/repos/jeremyfa/yaml.js/zipball/refs/tags/v0.3.0',
+                    'tarball_url': 'https://api.github.com/repos/jeremyfa/yaml.js/tarball/refs/tags/v0.3.0',
+                    'commit': {
+                        'sha': '51a74dc0c39d78af7c64e12eafef2711f31abb27',
+                        'url': 'https://api.github.com/repos/jeremyfa/yaml.js/commits/51a74dc0c39d78af7c64e12eafef2711f31abb27'},  # noqa
+                    'node_id': 'MDM6UmVmMTAyMzYzODpyZWZzL3RhZ3MvdjAuMy4w'}]
+        elif url == 'https://api.github.com/repos/jeremyfa/yaml.js/tags?per_page=100&page=1':
+            return [
+                {
+                    'name': 'v0.3.0',
+                    'zipball_url': 'https://api.github.com/repos/jeremyfa/yaml.js/zipball/refs/tags/v0.3.0',
+                    'tarball_url': 'https://api.github.com/repos/jeremyfa/yaml.js/tarball/refs/tags/v0.3.0',
+                    'commit': {
+                        'sha': '51a74dc0c39d78af7c64e12eafef2711f31abb27',
+                        'url': 'https://api.github.com/repos/jeremyfa/yaml.js/commits/51a74dc0c39d78af7c64e12eafef2711f31abb27'},  # noqa
+                    'node_id': 'MDM6UmVmMTAyMzYzODpyZWZzL3RhZ3MvdjAuMy4w'}]
+        elif url == 'https://github.com/tartley/colorama/refs?type=tag':
+            return {
+                        "refs": ["v0.3.4", "v0.3.3", "0.4.6", "0.4.6rc1", "0.4.5", "0.4.5rc1", "0.4.4", "0.4.3", "0.4.1", "0.4.0", "0.3.9", "0.3.8",  "0.3.7", "0.3.6", "0.3.5"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+
+        elif url == 'https://github.com/python/cpython/refs?type=tag':
+            return {
+                        "refs": ["v3.8.0", "v3.8.0rc1", "v3.8.0b4", "v3.8.0b3", "v3.8.0b2", "v3.8.0b1", "v3.8.0a4", "v3.8.0a3", "v3.8.0a2"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/hukkin/tomli/refs?type=tag':
+            return {
+                        "refs": ["v2.0.1", "2.0.1", "2.0.0", "1.2.3", "1.2.2", "1.2.1"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/pypa/something/refs?type=tag':
+            return {
+                'error': 'Not Found',
+                'documentation_url': 'https://docs.github.com/rest/repos/repos#list-repository-tags'
+            }
+        elif url == 'https://github.com/pypa/wheel/refs?type=tag':
+            return {
+                        "refs": ["0.38.4", "0.38.0", "0.37.1", "0.37.0", "0.36.2"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/sindresorhus/into-stream/refs?type=tag':
+            return {
+                        "refs": ["v8.0.1", "v8.0.0", "v7.0.0", "v6.0.0", "v5.1.1"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/avoidwork/tiny-lru/refs?type=tag':
+            return {
+                        "refs": ["11.1.0", "11.0.1", "11.0.0"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/jeremyfa/yaml.js/refs?type=tag':
+            return {
+                        "refs": ["v0.3.0", "v0.2.10", "v0.2.9"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
         else:
             return []
 
-    @patch('capycli.common.github_support.GitHubSupport.github_request')
+    @patch('capycli.bom.findsources.FindSources.github_request')
     def test_find_sources(self, mock_github_request: Any) -> None:
         sut = FindSources()
 
@@ -353,12 +280,43 @@ class TestFindSources(TestBase):
 
         self.delete_file(args.outputfile)
 
+    def test_get_repo_name(self) -> None:
+        # simple
+        repo = "https://github.com/JamesNK/Newtonsoft.Json"
+        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
+
+        self.assertEqual("JamesNK/Newtonsoft.Json", actual)
+
+        # trailing .git
+        repo = "https://github.com/restsharp/RestSharp.git"
+        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
+
+        self.assertEqual("restsharp/RestSharp", actual)
+
+        # trailing #readme
+        repo = "https://github.com/restsharp/RestSharp#readme"
+        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
+
+        self.assertEqual("restsharp/RestSharp", actual)
+
+        # prefix git
+        repo = "git://github.com/restsharp/RestSharp#readme"
+        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
+
+        self.assertEqual("restsharp/RestSharp", actual)
+
+        # prefix git+https
+        repo = "git+https://github.com/restsharp/RestSharp#readme"
+        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
+
+        self.assertEqual("restsharp/RestSharp", actual)
+
     def test_normalize_version(self) -> None:
         sut = FindSources()
         param_list = [('We don\'t know', '0.0.0'), ('pre_pr_153572', '0.0.0'), ('1_27_1_1', '1.27.1.1'),
                       ('2.6.3', '2.6.3'), ('2.0.0.RELEASE', '2.0.0'), ('1.29', '1.29.0'), ('1.06', '1.6.0'),
-                      ('1_27_1', '1.27.1'), ('_1_27_1', '1.27.1'), ('v1.1.1', '1.1.1'), ('v1.1.1.RELEASE', '1.1.1'),
-                      ('0.4.M3', '0.4.0'), ('V1_9_9_1', '1.9.9.1')]
+                      ('1_27_1', '1.27.1'), ('v1.1.1', '1.1.1'), ('v1.1.1.RELEASE', '1.1.1'), ('0.4.M3', '0.4.0'),
+                      ('V1_9_9_1', '1.9.9.1')]
         for version, expected in param_list:
             with self.subTest("Convert input version to semver", version=version, expected=expected):
                 actual = sut.to_semver_string(version)
@@ -400,72 +358,26 @@ class TestFindSources(TestBase):
         repo_url = find_sources.get_pkg_go_repo_url('example/package')
         self.assertEqual(repo_url, 'https://github.com/example/repo/1.0.0')
 
-    @patch('requests.get', side_effect=Exception('@patch-ed Error by unittest!'))
+    @patch('requests.get', side_effect=Exception('Some error'))
     def test_get_pkg_go_repo_url_error(self, mock_requests_get: Any) -> None:
         # Mocking an exception during the request
         find_sources = FindSources()
         repo_url = find_sources.get_pkg_go_repo_url('some/package')
         self.assertEqual(repo_url, 'https://pkg.go.dev/some/package')
 
-    @patch('capycli.bom.findsources.FindSources.get_matching_source_url')
-    @patch('capycli.bom.findsources.FindSources.get_pkg_go_repo_url')
-    @patch('capycli.bom.findsources.FindSources.get_matching_tag')
     @patch('capycli.bom.findsources.FindSources.get_github_info')
-    def test_find_golang_url_github(self,
-                                    mock_get_github_info: Any,
-                                    mock_get_matching_tag: Any,
-                                    mock_get_pkg_go_repo_url: Any,
-                                    mock_get_matching_source_url: Any,
-                                    ) -> None:
+    @patch('capycli.bom.findsources.FindSources.get_matching_tag')
+    def test_find_golang_url_github(self, mock_get_github_info: Any, mock_get_matching_tag: Any) -> None:
         # Mocking a GitHub scenario
-        runc = {  # real data as of 2024-11-18
-            'html_url': 'https://github.com/opencontainers/runc',
-            'zipball_url': 'https://github.com/opencontainers/runc/archive/refs/tags/v1.0.1.zip',
-        }
-        mock_get_github_info.return_value = []
-        mock_get_matching_tag.return_value = runc['zipball_url']
-        mock_get_pkg_go_repo_url.return_value = runc['html_url']
-        mock_get_matching_source_url.return_value = runc['zipball_url']
+        mock_get_github_info.return_value = 'https://pkg.go.dev/github.com/opencontainers/runc'
+        mock_get_matching_tag.return_value = 'https://github.com/opencontainers/runc/archive/refs/tags/v1.0.1.zip'
         find_sources = FindSources()
         component = MagicMock()
         component.name = 'github.com/opencontainers/runc'
         component.version = 'v1.0.1'
-
-        # semantic versioning, sunshine and rainbows
         source_url = find_sources.find_golang_url(component)
-        self.assertEqual(source_url, runc['zipball_url'])
 
-        # version with +incompatible
-        with patch.object(component, 'version', new='v1.0.1+incompatible'):
-            source_url = find_sources.find_golang_url(component)
-            self.assertEqual(source_url, runc['zipball_url'])
-
-        # '-'-separated version with commit id
-        with patch.object(component, 'version', new='foo-bar-ThisIsACommitId'):
-            source_url = find_sources.find_golang_url(component)
-            self.assertEqual(source_url,
-                             runc['html_url'] + '/archive/ThisIsACommitId.zip')
-
-        # component name w/o github.com
-        # with patch.object(component, 'name', new='opencontainers/runc'):
-        #    no point in testing because in this case get_pkg_go_repo_url
-        #    would return an empty string and we would never reach the
-        #    corresponding test in find_golang_url()
-        #    There is test_find_golang_url_non_github() ...
-
-        # missing data for remaining tests:
-        # - opencontainers/runc/<version_prefix>
-        # - component.name.startswith('gopkg.in')
-        # - component.name.startswith('https://github.com')
-        # I think these would also fail at find_golang_url()
-
-        # WARNING it would seem when patch()-ing a MagicMock the change
-        #         is not (always) reversed properly. Therefore this test
-        #         goes last!
-        # not published on pkg.go.dev
-        with patch.object(mock_get_pkg_go_repo_url, 'return_value', new=''):
-            source_url = find_sources.find_golang_url(component)
-            self.assertEqual(source_url, '')
+        self.assertEqual(source_url, 'https://pkg.go.dev/github.com/opencontainers/runc')
 
     def test_find_golang_url_non_github(self) -> None:
         # Mocking a non-GitHub scenario
@@ -486,23 +398,23 @@ class TestFindSources(TestBase):
         sourceUrl = "https://github.com/apache/kafka/archive/refs/tags/" + validTag + ".zip"
         findResource = capycli.bom.findsources.FindSources()
         # test Empty tagInfo array
-        tagInfo: List[Dict[str, Any]] = []
+        tagInfo: List[str] = []
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, "")
         # test Empty tag string
-        tagInfo = [{"name": emptyString, "zipball_url": zipball_url}]
+        tagInfo = [emptyString]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, '')
-        # test Empty url string
-        tagInfo = [{"name": validTag, "zipball_url": emptyString}]
-        actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
-        self.assertEqual(actual, "")
+        # test Empty url string ***INVALID***
+        # tagInfo = [{"name": validTag, "zipball_url": emptyString}]
+        # actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
+        # self.assertEqual(actual, "")
         # test non-matching tag
-        tagInfo = [{"name": invalidTag, "zipball_url": zipball_url}]
+        tagInfo = [invalidTag]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, '')
         # test valid tag
-        tagInfo = [{"name": validTag, "zipball_url": zipball_url}]
+        tagInfo = [validTag]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, sourceUrl)
 
@@ -542,398 +454,6 @@ class TestFindSources(TestBase):
         with self.assertRaises(Exception):
             findsources.get_source_url_from_release(mock_release_id)
         mock_client.get_release.assert_called_once_with(mock_release_id)
-
-    @patch('capycli.bom.findsources.FindSources.get_pkg_go_repo_url')
-    @patch('capycli.common.github_support.GitHubSupport.github_request')
-    def test_get_matching_source_url(self,
-                                     mock_github_request: Any,
-                                     mock_get_pkg_go_repo_url: Any,
-                                     ) -> None:
-        """various get_matching_source_url() invocations.
-
-           from find_github_url
-               self.get_matching_source_url(component.version, match["tags_url"])
-               -> run tests with tags_url
-           from find_golang_url (with lengthy parameter preparation)
-               self.get_matching_source_url(component_version, repository_name)
-               -> run tests with project.name
-           from get_github_source_url (w/ repo_name from get_repo_name())
-                self.get_matching_source_url(version, repo_name)
-        """
-        experienced_problems = {
-            'emotion-js/emotion': [
-                {
-                    "name": "vundefined",
-                    "zipball_url": "https://api.github.com/repos/emotion-js/emotion/zipball/refs/tags/vundefined",
-                    "tarball_url": "https://api.github.com/repos/emotion-js/emotion/tarball/refs/tags/vundefined",
-                    "commit": {
-                        "sha": "c6309a0b50bc8368721c01538175934327ffb400",
-                        "url": ("https://api.github.com/repos/"
-                                "emotion-js/emotion/commits/c6309a0b50bc8368721c01538175934327ffb400")
-                    },
-                    "node_id": "MDM6UmVmOTI1NzA1MzY6cmVmcy90YWdzL3Z1bmRlZmluZWQ="
-                },
-                {
-                    "name": "v10.0.6",
-                    "zipball_url": "https://api.github.com/repos/emotion-js/emotion/zipball/refs/tags/v10.0.6",
-                    "tarball_url": "https://api.github.com/repos/emotion-js/emotion/tarball/refs/tags/v10.0.6",
-                    "commit": {
-                        "sha": "ab535a8c7a0dcbbb6af310634eb3cee4bc2f8e2c",
-                        "url": ("https://api.github.com/repos/"
-                                "emotion-js/emotion/commits/ab535a8c7a0dcbbb6af310634eb3cee4bc2f8e2c")
-                    },
-                    "node_id": "MDM6UmVmOTI1NzA1MzY6cmVmcy90YWdzL3YxMC4wLjY="
-                },
-                {
-                    "name": "@emotion/babel-plugin@11.9.5",
-                    "zipball_url": ("https://api.github.com/repos/"
-                                    "emotion-js/emotion/zipball/refs/tags/@emotion/babel-plugin@11.9.5"),
-                    "tarball_url": ("https://api.github.com/repos/"
-                                    "emotion-js/emotion/tarball/refs/tags/@emotion/babel-plugin@11.9.5"),
-                    "commit": {
-                        "sha": "2e6a7aa7ce8384df528661e260924e49779f60d7",
-                        "url": ("https://api.github.com/repos/"
-                                "emotion-js/emotion/commits/2e6a7aa7ce8384df528661e260924e49779f60d7")
-                    },
-                    "node_id": "MDM6UmVmOTI1NzA1MzY6cmVmcy90YWdzL0BlbW90aW9uL2JhYmVsLXBsdWdpbkAxMS45LjU="
-                },
-                {
-                    "name": "@emotion/babel-plugin@11.9.2",
-                    "zipball_url": ("https://api.github.com/repos/"
-                                    "emotion-js/emotion/zipball/refs/tags/@emotion/babel-plugin@11.9.2"),
-                    "tarball_url": ("https://api.github.com/repos/"
-                                    "emotion-js/emotion/tarball/refs/tags/@emotion/babel-plugin@11.9.2"),
-                    "commit": {
-                        "sha": "888377a1579ce73beb20e981d443e75209a4441f",
-                        "url": ("https://api.github.com/"
-                                "repos/emotion-js/emotion/commits/888377a1579ce73beb20e981d443e75209a4441f")
-                    },
-                },
-                {
-                    "name": "test-utils@0.3.2",
-                    "zipball_url": "https://api.github.com/repos/emotion-js/emotion/zipball/refs/tags/test-utils@0.3.2",
-                    "tarball_url": "https://api.github.com/repos/emotion-js/emotion/tarball/refs/tags/test-utils@0.3.2",
-                    "commit": {
-                        "sha": "493e045b88e614db0bce352e08833d8dee431ffa",
-                        "url": ("https://api.github.com/repos/"
-                                "emotion-js/emotion/commits/493e045b88e614db0bce352e08833d8dee431ffa")
-                    },
-                    "node_id": "MDM6UmVmOTI1NzA1MzY6cmVmcy90YWdzL3Rlc3QtdXRpbHNAMC4zLjI="
-                },
-                {
-                    "name": "test-utils@0.3.1",
-                    "zipball_url": "https://api.github.com/repos/emotion-js/emotion/zipball/refs/tags/test-utils@0.3.1",
-                    "tarball_url": "https://api.github.com/repos/emotion-js/emotion/tarball/refs/tags/test-utils@0.3.1",
-                    "commit": {
-                        "sha": "f05b183c54cc23117d3b5033e5f136b4f1e930e2",
-                        "url": ("https://api.github.com/repos/"
-                                "emotion-js/emotion/commits/f05b183c54cc23117d3b5033e5f136b4f1e930e2")
-                    },
-                    "node_id": "MDM6UmVmOTI1NzA1MzY6cmVmcy90YWdzL3Rlc3QtdXRpbHNAMC4zLjE="
-                },
-
-            ]}
-
-        out = FindSources()  # Object Under Test
-        mock_github_request.side_effect = self.mock_github_request_side_effect
-
-        # from find_github_url; find existing tags in our test data
-        for project in self.github_projects.values():
-            try:
-                tag_name = project.data[0]['name']
-            except (IndexError, KeyError, TypeError):
-                # expect negative results
-                res = out.get_matching_source_url(tag_name, project.tags_url)
-                self.assertEqual(res, '')
-            else:
-                res = out.get_matching_source_url(tag_name, project.tags_url)
-                # assertions based on _render_github_source_url()
-                self.assertTrue(res.startswith('https://github.com'), (tag_name, project.tags_url, res))
-                self.assertIn('archive/refs/tags', res)
-                self.assertTrue(res.endswith('.zip'))
-
-        # from find_github_url; forge an entry with a forged tag we will guess
-        for project in self.github_projects.values():
-            try:
-                tag_name = project.data[0]['name']
-            except (IndexError, KeyError, TypeError):
-                continue  # not viable test data
-            split_semver = out.to_semver_string(tag_name).split('.')
-            pos = tag_name.index(split_semver[0])
-            pos = tag_name.index(split_semver[1], pos)
-            forged_tag = tag_name[0:pos] \
-                + str(int(split_semver[1]) + len(project.data)) \
-                + tag_name[pos + len(split_semver[1]):]
-            # print('unittest', tag_name, forged_tag)
-            forged_entry = {}
-            for key, value in project.data[0].items():
-                if isinstance(value, str):
-                    value = value.replace(tag_name, forged_tag)
-                forged_entry[key] = value
-            project.data.append(forged_entry)
-            # most importantly, the entry with the forged tag is not the
-            # first entry and therefore get_matching_source_url will try
-            # at least once to guess the forged_tag
-            res = out.get_matching_source_url(forged_tag, project.tags_url)
-            # assertions based on _render_github_source_url()
-            self.assertTrue(res.startswith('https://github.com'))
-            self.assertIn('archive/refs/tags', res)
-            self.assertTrue(res.endswith('.zip'))
-
-        # from find_golang_url; find existing tags in our test data
-        # (will not test guessing again b/c it only depends on the tag)
-        for project in self.github_projects.values():
-            try:
-                tag_name = project.data[0]['name']
-            except (IndexError, KeyError, TypeError):
-                # expect negative results
-                res = out.get_matching_source_url(tag_name, project.name)
-                self.assertEqual(res, '')
-            else:
-                res = out.get_matching_source_url(tag_name, project.name)
-                # assertions based on _render_github_source_url()
-                self.assertTrue(res.startswith('https://github.com'))
-                self.assertIn('archive/refs/tags', res)
-                self.assertTrue(res.endswith('.zip'))
-        # from get_github_source_url; find existing tags in our test data
-        for project in self.github_projects.values():
-            try:
-                tag_name = project.data[0]['name']
-            except (IndexError, KeyError, TypeError):
-                # expect negative results
-                res = out.get_matching_source_url(tag_name, project.git_url)
-                self.assertEqual(res, '')
-            else:
-                res = out.get_matching_source_url(tag_name, project.name)
-                # assertions based on _render_github_source_url()
-                self.assertTrue(res.startswith('https://github.com'))
-                self.assertIn('archive/refs/tags', res)
-                self.assertTrue(res.endswith('.zip'))
-
-        # for coverage ...
-        # provoke continue because we guessed this pattern before
-        # this must come after we added forged entry
-        for project in self.github_projects.values():
-            try:
-                tag_name = project.data[0]['name']
-            except (IndexError, KeyError, TypeError):
-                continue  # not viable test data
-            split_semver = out.to_semver_string(tag_name).split('.')
-            pos = tag_name.index(split_semver[0])
-            pos = tag_name.index(split_semver[1], pos)
-            forged_tag = tag_name[0:pos] \
-                + str(int(split_semver[1]) + 2 * len(project.data)) \
-                + tag_name[pos + len(split_semver[1]):]
-            res = out.get_matching_source_url(forged_tag, project.tags_url)
-            self.assertEqual(res, '')
-
-        # not sure if instead of testing this we should remove the code
-        res = out.get_matching_source_url('0.0', 'https://gitlab.com/unit/test')
-        self.assertEqual(res, '')
-
-        # encountered real world challenges
-        # Emotion
-        # the issue is they have tags like 'vundefined'
-        emotion = 'emotion-js/emotion'
-        gh_emotion = MockProject(emotion, experienced_problems[emotion])
-        self.github_projects[emotion] = gh_emotion
-        res = out.get_matching_source_url('0.3.1', gh_emotion.tags_url)
-        self.assertEqual(res, 'https://github.com/emotion-js/emotion/archive/refs/tags/test-utils@0.3.1.zip')
-        res = out.get_matching_source_url('11.9.5', gh_emotion.tags_url)
-        self.assertEqual(res,
-                         'https://github.com/emotion-js/emotion/archive/refs/tags/@emotion/babel-plugin@11.9.5.zip')
-        res = out.get_matching_source_url('vundefined', gh_emotion.tags_url)
-        self.assertTrue(res.startswith('https://github.com'))
-        self.assertIn('archive/refs/tags', res)
-        self.assertTrue(res.endswith('.zip'))
-        # the following is an immediate artifact of IMHO problematic
-        # get_matching_tag() behaviour, which should be addressed eventually
-        res = out.get_matching_source_url('xoxo', gh_emotion.tags_url)
-        self.assertNotIn('xoxo', res)
-        self.assertIn('vundefined', res)
-
-    @_recorder.record(file_path='unauthenticated_github_request.yml')  # type: ignore
-    def create_recording_for_test_github_request(self) -> None:
-        out = GitHubSupport()  # Object Under Test
-
-        # not an API endpoint, does not return json payload
-        kwargs = {'url': 'https://github.com',
-                  'username': "",
-                  'token': "",
-                  'return_response': True,
-                  'allow_redirects': True,
-                  }
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.json(), {})
-        # unauthenticated /user -> 401
-        kwargs['url'] = 'https://api.github.com/user'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.status_code, 401)
-        # unauthenticated /repos/sw360/capycli
-        kwargs['url'] = 'https://api.github.com/repos/sw360/capycli'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(hasattr(res, 'json'))
-        self.assertIn('tags_url', res.json())
-        # ... get payload only; not sure if this makes any sense with responses
-        kwargs['return_response'] = False
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertIn('tags_url', res)
-        # disallow redirects; not sure if this makes any sense with responses
-        kwargs['return_response'] = True
-        kwargs['allow_redirects'] = False
-        kwargs['url'] = 'https://api.github.com/repos/sw360/capycli/tarball/refs/tags/v2.5.1'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertTrue(300 < res.status_code < 400)
-        # usually unwise combination of settings
-        kwargs['return_response'] = False
-        res = out.github_request(**kwargs)  # type: ignore
-
-    @_recorder.record(file_path='authenticated_github_request.yml')  # type: ignore
-    def create_other_recording_for_test_github_request(self) -> None:
-        """Make sure you have the environment variable GITHUB_TOKEN
-           set to a valid personal token. Otherwise you will not be
-           able to create a proper recording for authenticated
-           GitHub access."""
-        out = FindSources()  # Object Under Test
-        # not an API endpoint, does not return json payload
-        kwargs = {'url': 'https://github.com',
-                  'username': "",
-                  'token': os.environ.get('GITHUB_TOKEN'),
-                  'return_response': True,
-                  'allow_redirects': True,
-                  }
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.json(), {})
-        # authenticated /user -> 200
-        kwargs['url'] = 'https://api.github.com/user'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.status_code, 200)
-        self.assertIn('login', res.json())
-        # unauthenticated /repos/sw360/capycli
-        kwargs['url'] = 'https://api.github.com/repos/sw360/capycli'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(hasattr(res, 'json'))
-        self.assertIn('tags_url', res.json())
-        # ... get payload only; not sure if this makes any sense with responses
-        kwargs['return_response'] = False
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertIn('tags_url', res)
-        # disallow redirects; not sure if this makes any sense with responses
-        kwargs['return_response'] = True
-        kwargs['allow_redirects'] = False
-        kwargs['url'] = 'https://api.github.com/repos/sw360/capycli/tarball/refs/tags/v2.5.1'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertTrue(300 < res.status_code < 400)
-        # usually unwise combination of settings
-        kwargs['return_response'] = False
-        res = out.github_request(**kwargs)  # type: ignore
-
-    @responses.activate
-    def test_github_request_unauthenticated(self) -> None:
-        out = GitHubSupport()  # Object Under Test
-        responses._add_from_file(file_path='tests/fixtures/unauthenticated_github_request.yml')
-        # not an API endpoint, does not return json payload
-        kwargs = {'url': 'https://github.com',
-                  'username': "",
-                  'token': "",
-                  'return_response': True,
-                  'allow_redirects': True,
-                  }
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.json(), {})
-        # unauthenticated /user -> 401
-        kwargs['url'] = 'https://api.github.com/user'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.status_code, 401)
-        # unauthenticated /repos/sw360/capycli
-        kwargs['url'] = 'https://api.github.com/repos/sw360/capycli'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(hasattr(res, 'json'))
-        self.assertIn('tags_url', res.json())
-        # ... get payload only; not sure if this makes any sense with responses
-        kwargs['return_response'] = False
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertIn('tags_url', res)
-        # disallow redirects; not sure if this makes any sense with responses
-        kwargs['return_response'] = True
-        kwargs['allow_redirects'] = False
-        kwargs['url'] = 'https://api.github.com/repos/sw360/capycli/tarball/refs/tags/v2.5.1'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertTrue(300 < res.status_code < 400)
-        # usually unwise combination of settings
-        kwargs['return_response'] = False
-        res = out.github_request(**kwargs)  # type: ignore
-        # recursive call
-        kwargs['username'] = 'UnitTest'
-        kwargs['token'] = 'SomeToken'
-        response_sequence = (
-            (429, '{}'),
-            (200, json.dumps({'message': "API rate limit exceeded"})),
-            (200, json.dumps({'message': "Bad credentials! Those are very very bad credentials!"})),
-        )
-        for resp in response_sequence:
-            responses.get(kwargs['url'], status=resp[0], body=resp[1])
-
-        with patch('sys.exit') as ultimate_failure:
-            with patch('time.sleep'):
-                res = out.github_request(**kwargs)  # type: ignore
-                ultimate_failure.assert_called_once()
-
-        # get a list response
-        kwargs['username'] = ''
-        kwargs['token'] = ''
-        responses.get(kwargs['url'], status=200, body='[{"name": "foo"}]')
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res, [{'name': 'foo'}])
-        # raise connection error for coverage
-        with patch('requests.get', side_effect=[
-            requests.exceptions.ConnectionError('unittest'),
-            Exception('last except block'),
-        ]) as conn_err:
-            with patch('time.sleep'):
-                res = out.github_request(**kwargs)  # type: ignore
-                self.assertEqual(conn_err.call_count, 2)
-
-    @responses.activate
-    def test_github_request_authenticated(self) -> None:
-        out = GitHubSupport()  # Object Under Test
-        responses._add_from_file(file_path='tests/fixtures/authenticated_github_request.yml')
-        # not an API endpoint, does not return json payload
-        kwargs = {'url': 'https://github.com',
-                  'username': "",
-                  'token': "",  # no need to set when using responses
-                  'return_response': True,
-                  'allow_redirects': True,
-                  }
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.json(), {})
-        # authenticated /user -> 200
-        kwargs['url'] = 'https://api.github.com/user'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.status_code, 200)
-        self.assertIn('login', res.json())
-        # unauthenticated /repos/sw360/capycli
-        kwargs['url'] = 'https://api.github.com/repos/sw360/capycli'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertEqual(res.status_code, 200)
-        self.assertTrue(hasattr(res, 'json'))
-        self.assertIn('tags_url', res.json())
-        # ... get payload only; not sure if this makes any sense with responses
-        kwargs['return_response'] = False
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertIn('tags_url', res)
-        # disallow redirects; not sure if this makes any sense with responses
-        kwargs['return_response'] = True
-        kwargs['allow_redirects'] = False
-        kwargs['url'] = 'https://api.github.com/repos/sw360/capycli/tarball/refs/tags/v2.5.1'
-        res = out.github_request(**kwargs)  # type: ignore
-        self.assertTrue(300 < res.status_code < 400)
-        # usually unwise combination of settings
-        kwargs['return_response'] = False
-        res = out.github_request(**kwargs)  # type: ignore
 
 
 if __name__ == "__main__":
