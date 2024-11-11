@@ -163,6 +163,47 @@ class TestFindSources(TestBase):
                         'sha': '51a74dc0c39d78af7c64e12eafef2711f31abb27',
                         'url': 'https://api.github.com/repos/jeremyfa/yaml.js/commits/51a74dc0c39d78af7c64e12eafef2711f31abb27'},  # noqa
                     'node_id': 'MDM6UmVmMTAyMzYzODpyZWZzL3RhZ3MvdjAuMy4w'}]
+        elif url == 'https://github.com/tartley/colorama/refs?type=tag':
+            return {
+                        "refs": ["v0.3.4", "v0.3.3", "0.4.6", "0.4.6rc1", "0.4.5", "0.4.5rc1", "0.4.4", "0.4.3", "0.4.1", "0.4.0", "0.3.9", "0.3.8",  "0.3.7", "0.3.6", "0.3.5"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+
+        elif url == 'https://github.com/python/cpython/refs?type=tag':
+            return {
+                        "refs": ["v3.8.0", "v3.8.0rc1", "v3.8.0b4", "v3.8.0b3", "v3.8.0b2", "v3.8.0b1", "v3.8.0a4", "v3.8.0a3", "v3.8.0a2"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/hukkin/tomli/refs?type=tag':
+            return {
+                        "refs": ["v2.0.1", "2.0.1", "2.0.0", "1.2.3", "1.2.2", "1.2.1"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/pypa/something/refs?type=tag':
+            return {
+                'error': 'Not Found',
+                'documentation_url': 'https://docs.github.com/rest/repos/repos#list-repository-tags'
+            }
+        elif url == 'https://github.com/pypa/wheel/refs?type=tag':
+            return {
+                        "refs": ["0.38.4", "0.38.0", "0.37.1", "0.37.0", "0.36.2"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/sindresorhus/into-stream/refs?type=tag':
+            return {
+                        "refs": ["v8.0.1", "v8.0.0", "v7.0.0", "v6.0.0", "v5.1.1"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/avoidwork/tiny-lru/refs?type=tag':
+            return {
+                        "refs": ["11.1.0", "11.0.1", "11.0.0"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
+        elif url == 'https://github.com/jeremyfa/yaml.js/refs?type=tag':
+            return {
+                        "refs": ["v0.3.0", "v0.2.10", "v0.2.9"],
+                        "cacheKey": "v0:1666664849.957521"
+                    }
         else:
             return []
 
@@ -357,23 +398,23 @@ class TestFindSources(TestBase):
         sourceUrl = "https://github.com/apache/kafka/archive/refs/tags/" + validTag + ".zip"
         findResource = capycli.bom.findsources.FindSources()
         # test Empty tagInfo array
-        tagInfo: List[Dict[str, Any]] = []
+        tagInfo: List[str] = []
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, "")
         # test Empty tag string
-        tagInfo = [{"name": emptyString, "zipball_url": zipball_url}]
+        tagInfo = [emptyString]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, '')
-        # test Empty url string
-        tagInfo = [{"name": validTag, "zipball_url": emptyString}]
-        actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
-        self.assertEqual(actual, "")
+        # test Empty url string ***INVALID***
+        # tagInfo = [{"name": validTag, "zipball_url": emptyString}]
+        # actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
+        # self.assertEqual(actual, "")
         # test non-matching tag
-        tagInfo = [{"name": invalidTag, "zipball_url": zipball_url}]
+        tagInfo = [invalidTag]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, '')
         # test valid tag
-        tagInfo = [{"name": validTag, "zipball_url": zipball_url}]
+        tagInfo = [validTag]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, sourceUrl)
 
