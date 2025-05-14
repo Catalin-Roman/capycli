@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------------
-# Copyright (c) 2019-2024 Siemens
+# Copyright (c) 2019-2025 Siemens
 # All Rights Reserved.
 # Author: thomas.graf@siemens.com
 #
@@ -33,9 +33,9 @@ class CreateProject(capycli.common.script_base.ScriptBase):
         self.onlyUpdateProject = onlyUpdateProject
         self.project_mainline_state: str = ""
 
-    def bom_to_release_list(self, sbom: Bom) -> List[str]:
-        """Creates a list with linked releases"""
-        linkedReleases = []
+    def bom_to_release_list(self, sbom: Bom) -> Dict[str, Any]:
+        """Creates a list with linked releases from the SBOM."""
+        linkedReleases: Dict[str, Any] = {}
 
         for cx_comp in sbom.components:
             rid = CycloneDxSupport.get_property_value(cx_comp, CycloneDxSupport.CDX_PROP_SW360ID)
@@ -45,9 +45,39 @@ class CreateProject(capycli.common.script_base.ScriptBase):
                     + ", " + str(cx_comp.version))
                 continue
 
-            linkedReleases.append(rid)
+            linkedReleases[rid] = {}
+
+            mainlineState = CycloneDxSupport.get_property_value(cx_comp, CycloneDxSupport.CDX_PROP_PROJ_STATE)
+            if mainlineState:
+                linkedReleases[rid]["mainlineState"] = mainlineState
+            relation = CycloneDxSupport.get_property_value(cx_comp, CycloneDxSupport.CDX_PROP_PROJ_RELATION)
+            if relation:
+                # No typo. In project structure, it's "relation", while release update API uses "releaseRelation".
+                linkedReleases[rid]["releaseRelation"] = relation
 
         return linkedReleases
+
+    def merge_project_mainline_states(self, data: Dict[str, Any], project: Optional[Dict[str, Any]]) -> None:
+        if not project:
+            return
+
+        if "linkedReleases" not in project:
+            return
+
+        for release in project["linkedReleases"]:  # NOT ["sw360:releases"]
+            pms_release = release.get("release", "")
+            if not pms_release:
+                continue
+            pms_release = pms_release.split("/")[-1]
+            if pms_release not in data:
+                continue
+            pms_state = release.get("mainlineState", "OPEN")
+            pms_relation = release.get("relation", "UNKNOWN")
+
+            if "mainlineState" not in data[pms_release]:
+                data[pms_release]["mainlineState"] = pms_state
+            if "releaseRelation" not in data[pms_release]:
+                data[pms_release]["releaseRelation"] = pms_relation
 
     def update_project(self, project_id: str, project: Optional[Dict[str, Any]],
                        sbom: Bom, project_info: Dict[str, Any]) -> None:
@@ -57,6 +87,7 @@ class CreateProject(capycli.common.script_base.ScriptBase):
             sys.exit(ResultCode.RESULT_ERROR_ACCESSING_SW360)
 
         data = self.bom_to_release_list(sbom)
+        self.merge_project_mainline_states(data, project)
 
         ignore_update_elements = ["name", "version"]
         # remove elements from list because they are handled separately
@@ -67,13 +98,17 @@ class CreateProject(capycli.common.script_base.ScriptBase):
         try:
             print_text("  " + str(len(data)) + " releases in SBOM")
 
+            update_mode = self.onlyUpdateProject
             if project and "_embedded" in project and "sw360:releases" in project["_embedded"]:
                 print_text(
                     "  " + str(len(project["_embedded"]["sw360:releases"])) +
                     " releases in project before update")
+            else:
+                # Workaround for SW360 API bug: add releases will hang forever for empty projects
+                update_mode = False
 
             # note: type in sw360python, 1.4.0 is wrong - we are using the correct one!
-            result = self.client.update_project_releases(data, project_id, add=self.onlyUpdateProject)  # type: ignore
+            result = self.client.update_project_releases(data, project_id, add=update_mode)  # type: ignore
             if not result:
                 print_red("  Error updating project releases!")
             project = self.client.get_project(project_id)
@@ -277,19 +312,27 @@ class CreateProject(capycli.common.script_base.ScriptBase):
             print("    -t SW360_TOKEN,           use this token for access to SW360")
             print("    -oa, --oauth2             this is an oauth2 token")
             print("    -url SW360_URL            use this URL for access to SW360")
-            print("    -name NAME, --name NAME   name of the project")
+            print("    -name NAME                name of the project")
             print("    -version VERSION,         version of the project")
             print("    -id PROJECT_ID            SW360 id of the project, supersedes name and version parameters")
             print("    -old-version              previous version")
             print("    -source projectinfo.json  additional information about the project to be created")
             print("    -pms                      project mainline state for releases in a newly created project")
+            print("    --copy_from PROJECT_ID    copy the project with the given id and the update it")
             return
 
         if not args.inputfile:
             print_red("No input file (BOM) specified!")
             sys.exit(ResultCode.RESULT_COMMAND_ERROR)
 
-        if not args.id:
+        if args.copy_from:
+            if args.id:
+                print_red("--copy_from cannot get combined with -id!")
+                sys.exit(ResultCode.RESULT_COMMAND_ERROR)
+            if not args.version:
+                print_red("No version for the new project specified!")
+                sys.exit(ResultCode.RESULT_COMMAND_ERROR)
+        elif not args.id:
             if not args.name:
                 print_red("Neither project name nor id specified!")
                 sys.exit(ResultCode.RESULT_COMMAND_ERROR)
@@ -308,6 +351,7 @@ class CreateProject(capycli.common.script_base.ScriptBase):
             sys.exit(ResultCode.RESULT_FILE_NOT_FOUND)
 
         is_update_version = False
+        project = None
 
         if args.old_version and args.old_version != "":
             print_text("Project version will be updated with version: " + args.old_version)
@@ -340,6 +384,16 @@ class CreateProject(capycli.common.script_base.ScriptBase):
                 print_red("Error reading project information: " + repr(ex))
                 sys.exit(ResultCode.RESULT_COMMAND_ERROR)
 
+        if args.copy_from:
+            print(f"Creating a copy of project {args.copy_from}...")
+            try:
+                project = self.client.duplicate_project(args.copy_from, args.version)
+                if project:
+                    args.id = self.client.get_id_from_href(project["_links"]["self"]["href"])
+            except SW360Error as swex:
+                print_red("  ERROR: unable to copy existing project:" + repr(swex))
+                sys.exit(ResultCode.RESULT_ERROR_ACCESSING_SW360)
+
         if args.id:
             self.project_id = args.id
         elif args.name and args.version:
@@ -358,7 +412,8 @@ class CreateProject(capycli.common.script_base.ScriptBase):
         if self.project_id:
             print("Updating project...")
             try:
-                project = self.client.get_project(self.project_id)
+                if project is None:
+                    project = self.client.get_project(self.project_id)
             except SW360Error as swex:
                 print_red("  ERROR: unable to access project:" + repr(swex))
                 sys.exit(ResultCode.RESULT_ERROR_ACCESSING_SW360)

@@ -1,9 +1,9 @@
-# SPDX-FileCopyrightText: (c) 2018-2025 Siemens
+# SPDX-FileCopyrightText: (c) 2018-2024 Siemens
 # SPDX-License-Identifier: MIT
 
 [tool.poetry]
 name = "capycli"
-version = "2.8.0"
+version = "2.6.0.dev1"
 description = "CaPyCli - Clearing Automation Python Command Line Interface for SW360"
 authors = ["Thomas Graf <thomas.graf@siemens.com>"]
 license = "MIT"
@@ -39,10 +39,10 @@ colorama = "^0.4.3"
 requests = "^2.31.0" # fix CVE-2023-32681 
 semver = "3.0.2"
 packageurl-python = "^0.15.6"
-pyjwt = "^2.4.0"
+pyjwt = "^1.7.1"
 openpyxl = "^3.0.3"
 requirements-parser = "0.11.0"
-sw360 = "^1.8.1"
+sw360 = "^1.5.0"
 wheel = "^0.38.4"
 cli-support = "2.0.1"
 chardet = "5.2.0"
@@ -53,7 +53,6 @@ urllib3 = "*"
 importlib-resources = "^5.12.0"
 beautifulsoup4 = "^4.11.1"
 jsonschema = "^4.23.0"
-validation = "^0.8.3"
 
 [tool.poetry.group.dev.dependencies]
 flake8 = ">=3.7.8"
@@ -71,11 +70,6 @@ types-python-dateutil = "^2.8.19.14"
 types-requests = "2.31.0.6"  # this is the last version that uses urllib3 < 2
 types-beautifulsoup4 = "^4.12.0.20240106"
 codespell = "^2.2.6"
-pytest-cov = "^3.0.0"
-pylint = "^2.13.0"
-pre-commit = "<3.0.0"
-
-
 
 [build-system]
 requires = ["poetry>=0.12"]

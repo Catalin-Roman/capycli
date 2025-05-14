@@ -125,19 +125,34 @@ class MapBom(capycli.common.script_base.ScriptBase):
 
         return False
 
-    def is_better_match(self, releases_found: List[Dict[str, Any]], proposed_match_code: str) -> bool:
-        if not releases_found:
-            return True
+    def add_match_if_better(self, map_result: MapResult, release: Dict[str, Any], proposed_match_code: str) -> bool:
+        """adds `release` with `proposed_match_code` to `map_result` if it is as good or better than the existing ones.
 
+        :return: True if the match was added, False if it was ignored
+        :rtype: bool
+        """
         best_match = MapResult.NO_MATCH
-        for rel in releases_found:
+        for rel in map_result.releases:
             if rel["MapResult"] < best_match:
                 best_match = rel["MapResult"]
 
-        if best_match > proposed_match_code:
-            return True
-        else:
+        if proposed_match_code > best_match:
+            if self.verbosity > 1:
+                print("    IGNORE (" + proposed_match_code + ")")
             return False
+
+        if proposed_match_code < best_match and map_result.releases:
+            map_result.releases.clear()
+            if self.verbosity > 1:
+                print("    CLEAR (" + proposed_match_code + ")")
+
+        map_result.result = proposed_match_code
+
+        release["MapResult"] = proposed_match_code
+        map_result.releases.append(release)
+        if self.verbosity > 1:
+            print("    ADDED (" + proposed_match_code + ") " + release["Sw360Id"])
+        return True
 
     @staticmethod
     def is_good_match(match_code: str) -> bool:
@@ -176,16 +191,7 @@ class MapBom(capycli.common.script_base.ScriptBase):
 
             # first check: unique id
             if result.release_id == release["Sw360Id"] or self.is_id_match(release, component):
-                if self.is_better_match(result.releases, MapResult.FULL_MATCH_BY_ID):
-                    result.releases.clear()
-                    if self.verbosity > 1:
-                        print("    CLEAR (FULL_MATCH_BY_ID)")
-                    result.result = MapResult.FULL_MATCH_BY_ID
-
-                release["MapResult"] = MapResult.FULL_MATCH_BY_ID
-                result.releases.append(release)
-                if self.verbosity > 1:
-                    print("    ADDED (FULL_MATCH_BY_ID) " + release["Sw360Id"])
+                self.add_match_if_better(result, release, MapResult.FULL_MATCH_BY_ID)
                 break
 
             # second check: name AND version
@@ -202,20 +208,7 @@ class MapBom(capycli.common.script_base.ScriptBase):
                 if (name_match
                     and version_exists and component.version
                         and (component.version.lower() == release["Version"].lower())):
-                    if self.is_better_match(
-                        result.releases,
-                            MapResult.FULL_MATCH_BY_NAME_AND_VERSION):
-                        result.releases.clear()
-
-                        if self.verbosity > 1:
-                            print("    CLEAR (FULL_MATCH_BY_NAME_AND_VERSION)")
-                        result.result = MapResult.FULL_MATCH_BY_NAME_AND_VERSION
-
-                    release["MapResult"] = MapResult.FULL_MATCH_BY_NAME_AND_VERSION
-                    result.releases.append(release)
-
-                    if self.verbosity > 1:
-                        print("    ADDED (FULL_MATCH_BY_NAME_AND_VERSION) " + release["Sw360Id"])
+                    self.add_match_if_better(result, release, MapResult.FULL_MATCH_BY_NAME_AND_VERSION)
                     break
             else:
                 name_match = False
@@ -226,19 +219,7 @@ class MapBom(capycli.common.script_base.ScriptBase):
                     and cmp_hash
                     and release["SourceFileHash"]):
                 if (cmp_hash.lower() == release["SourceFileHash"].lower()):
-                    if self.is_better_match(
-                        result.releases, MapResult.FULL_MATCH_BY_HASH
-                    ):
-                        result.releases.clear()
-
-                        if self.verbosity > 1:
-                            print("    CLEAR (FULL_MATCH_BY_HASH)")
-                        result.result = MapResult.FULL_MATCH_BY_HASH
-
-                    release["MapResult"] = MapResult.FULL_MATCH_BY_HASH
-                    result.releases.append(release)
-                    if self.verbosity > 1:
-                        print("    ADDED (FULL_MATCH_BY_HASH) " + release["Sw360Id"])
+                    self.add_match_if_better(result, release, MapResult.FULL_MATCH_BY_HASH)
                     break
 
             cmp_hash = CycloneDxSupport.get_binary_file_hash(component)
@@ -246,19 +227,7 @@ class MapBom(capycli.common.script_base.ScriptBase):
                 and cmp_hash
                     and release["BinaryFileHash"]):
                 if (cmp_hash.lower() == release["BinaryFileHash"].lower()):
-                    if self.is_better_match(
-                        result.releases, MapResult.FULL_MATCH_BY_HASH
-                    ):
-                        result.releases.clear()
-
-                        if self.verbosity > 1:
-                            print("    CLEAR (FULL_MATCH_BY_HASH)")
-                        result.result = MapResult.FULL_MATCH_BY_HASH
-
-                    release["MapResult"] = MapResult.FULL_MATCH_BY_HASH
-                    result.releases.append(release)
-                    if self.verbosity > 1:
-                        print("    ADDED (FULL_MATCH_BY_HASH) " + release["Sw360Id"])
+                    self.add_match_if_better(result, release, MapResult.FULL_MATCH_BY_HASH)
                     break
 
             # fourth check: source filename
@@ -267,63 +236,26 @@ class MapBom(capycli.common.script_base.ScriptBase):
                 and cmp_src_file
                     and release["SourceFile"]):
                 if cmp_src_file.lower() == release["SourceFile"].lower():
-                    if self.is_better_match(
-                        result.releases, MapResult.MATCH_BY_FILENAME
-                    ):
-                        result.releases.clear()
-
-                        if self.verbosity > 1:
-                            print("    CLEAR (MATCH_BY_FILENAME)")
-                        result.result = MapResult.MATCH_BY_FILENAME
-
-                    release["MapResult"] = MapResult.MATCH_BY_FILENAME
-                    result.releases.append(release)
-
-                    if self.verbosity > 1:
-                        print("    ADDED (MATCH_BY_FILENAME) " + release["Sw360Id"])
+                    self.add_match_if_better(result, release, MapResult.MATCH_BY_FILENAME)
                     break
 
             # fifth check: name and ANY version
             if name_match:
-                if self.is_better_match(result.releases, MapResult.MATCH_BY_NAME):
-                    if self.no_match_by_name_only:
-                        nn = release.get("Name", "")
-                        vv = release.get("Version", "")
-                        print_yellow(f"Match by name only found for {nn}, {component.version} => {vv}, but ignored")
-                        continue
+                if self.no_match_by_name_only:
+                    nn = release.get("Name", "")
+                    vv = release.get("Version", "")
+                    print_yellow(f"Match by name only found for {nn}, {component.version} => {vv}, but ignored")
+                    continue
 
-                    result.releases.clear()
-
-                    if self.verbosity > 1:
-                        print("    CLEAR (MATCH_BY_NAME)")
-                    result.result = MapResult.MATCH_BY_NAME
-
-                release["MapResult"] = MapResult.MATCH_BY_NAME
-                result.releases.append(release)
-
-                if self.verbosity > 1:
-                    print("    ADDED (MATCH_BY_NAME) " + release["Sw360Id"])
+                self.add_match_if_better(result, release, MapResult.MATCH_BY_NAME)
                 continue
 
             if check_similar:
                 # sixth check: look for similar names (experimental!)
                 if self.similar_name_match(component, release):
-                    if self.is_better_match(
-                        result.releases, MapResult.SIMILAR_COMPONENT_FOUND
-                    ):
-                        result.releases.clear()
+                    if self.add_match_if_better(result, release, MapResult.SIMILAR_COMPONENT_FOUND):
                         if self.verbosity > 1:
-                            print("    CLEAR (SIMILAR_COMPONENT_FOUND)")
-                        result.result = MapResult.SIMILAR_COMPONENT_FOUND
-
-                    release["MapResult"] = MapResult.SIMILAR_COMPONENT_FOUND
-
-                    if self.verbosity > 1:
-                        print("--- added MapResult.SIMILAR_COMPONENT_FOUND: " + str(release))
-                    result.releases.append(release)
-
-                    if self.verbosity > 1:
-                        print("ADDED (SIMILAR_COMPONENT_FOUND) " + release["Sw360Id"])
+                            print("--- added MapResult.SIMILAR_COMPONENT_FOUND: " + str(release))
 
         if result_required:
             # use only wants to have releases report that have a clearing result available
@@ -368,16 +300,20 @@ class MapBom(capycli.common.script_base.ScriptBase):
             if release_url is not None:
                 rel_list = [{"_links": {"self": {"href": release_url}}}]
             else:
-                comp = self.client.get_component_by_url(compref)  # type: ignore
+                comp = self.client.get_component_by_url(compref)
                 if not comp:
                     continue
                 rel_list = comp["_embedded"].get("sw360:releases", [])
 
             # Sorted alternatives in descending version order
             # Please note: the release list sometimes contain just the href but no version
-            rel_list = sorted(rel_list,
-                              key=lambda x: "version" in x and ComparableVersion(
-                                  x.get("version", "")), reverse=True)  # type: ignore
+            try:
+                rel_list = sorted(rel_list,
+                                  key=lambda x: "version" in x and ComparableVersion(
+                                      x.get("version", "")), reverse=True)  # type: ignore
+            except ValueError:
+                pass  # we can live with an unsorted list
+
             for relref in rel_list:
                 href = relref["_links"]["self"]["href"]
                 real_release = self.client.get_release_by_url(href)
@@ -400,19 +336,7 @@ class MapBom(capycli.common.script_base.ScriptBase):
 
                 # first check: unique id
                 if href == release_url or self.is_id_match(release, component):
-                    if self.is_better_match(result.releases, MapResult.FULL_MATCH_BY_ID):
-                        result.releases.clear()
-
-                        if self.verbosity > 1:
-                            print_text("    CLEAR (FULL_MATCH_BY_ID)")
-                        result.result = MapResult.FULL_MATCH_BY_ID
-
-                    release["MapResult"] = MapResult.FULL_MATCH_BY_ID
-                    result.releases.append(release)
-
-                    if self.verbosity > 1:
-                        print_text("    ADDED (FULL_MATCH_BY_ID) " + release.get("Sw360Id", ""))
-
+                    self.add_match_if_better(result, release, MapResult.FULL_MATCH_BY_ID)
                     break
 
                 # second check: name AND version (we don't need to check the name
@@ -420,20 +344,7 @@ class MapBom(capycli.common.script_base.ScriptBase):
                 version_exists = "Version" in release
                 if (version_exists
                         and ((component.version or "").lower() == release.get("Version", "").lower())):
-                    if self.is_better_match(
-                        result.releases,
-                            MapResult.FULL_MATCH_BY_NAME_AND_VERSION):
-                        result.releases.clear()
-
-                        if self.verbosity > 1:
-                            print_text("    CLEAR (FULL_MATCH_BY_NAME_AND_VERSION)")
-                        result.result = MapResult.FULL_MATCH_BY_NAME_AND_VERSION
-
-                    release["MapResult"] = MapResult.FULL_MATCH_BY_NAME_AND_VERSION
-                    result.releases.append(release)
-
-                    if self.verbosity > 1:
-                        print_text("    ADDED (FULL_MATCH_BY_NAME_AND_VERSION) " + release["Sw360Id"])
+                    self.add_match_if_better(result, release, MapResult.FULL_MATCH_BY_NAME_AND_VERSION)
                     break
 
                 # third check unique(?) file hashes
@@ -442,19 +353,7 @@ class MapBom(capycli.common.script_base.ScriptBase):
                         and cmp_hash
                         and release["SourceFileHash"]):
                     if (cmp_hash.lower() == release["SourceFileHash"].lower()):
-                        if self.is_better_match(
-                            result.releases, MapResult.FULL_MATCH_BY_HASH
-                        ):
-                            result.releases.clear()
-
-                            if self.verbosity > 1:
-                                print("    CLEAR (FULL_MATCH_BY_HASH)")
-                            result.result = MapResult.FULL_MATCH_BY_HASH
-
-                        release["MapResult"] = MapResult.FULL_MATCH_BY_HASH
-                        result.releases.append(release)
-                        if self.verbosity > 1:
-                            print("    ADDED (FULL_MATCH_BY_HASH) " + release["Sw360Id"])
+                        self.add_match_if_better(result, release, MapResult.FULL_MATCH_BY_HASH)
                         break
 
                 cmp_hash = CycloneDxSupport.get_binary_file_hash(component)
@@ -462,41 +361,16 @@ class MapBom(capycli.common.script_base.ScriptBase):
                     and cmp_hash
                         and release["BinaryFileHash"]):
                     if (cmp_hash.lower() == release["BinaryFileHash"].lower()):
-                        if self.is_better_match(
-                            result.releases, MapResult.FULL_MATCH_BY_HASH
-                        ):
-                            result.releases.clear()
-
-                            if self.verbosity > 1:
-                                print("    CLEAR (FULL_MATCH_BY_HASH)")
-                            result.result = MapResult.FULL_MATCH_BY_HASH
-
-                        release["MapResult"] = MapResult.FULL_MATCH_BY_HASH
-                        result.releases.append(release)
-                        if self.verbosity > 1:
-                            print("    ADDED (FULL_MATCH_BY_HASH) " + release["Sw360Id"])
+                        self.add_match_if_better(result, release, MapResult.FULL_MATCH_BY_HASH)
                         break
 
                 # fifth check: name and ANY version
-                if self.is_better_match(result.releases, MapResult.MATCH_BY_NAME):
-                    if self.no_match_by_name_only:
-                        nn = release.get("Name", "")
-                        vv = release.get("Version", "")
-                        print_yellow(f"Match by name only found for {nn}, {component.version} => {vv}, but ignored")
-                        continue
-
-                    result.releases.clear()
-
-                    if self.verbosity > 1:
-                        print_text("    CLEAR (MATCH_BY_NAME)")
-                    result.result = MapResult.MATCH_BY_NAME
-
-                release["MapResult"] = MapResult.MATCH_BY_NAME
-
-                result.releases.append(release)
-
-                if self.verbosity > 1:
-                    print_text("    ADDED (MATCH_BY_NAME) " + release["Sw360Id"])
+                if self.no_match_by_name_only:
+                    nn = release.get("Name", "")
+                    vv = release.get("Version", "")
+                    print_yellow(f"Match by name only found for {nn}, {component.version} => {vv}, but ignored")
+                    continue
+                self.add_match_if_better(result, release, MapResult.MATCH_BY_NAME)
         return result
 
     def has_release_clearing_result(self, client: Optional[SW360], result_item: Dict[str, Any]) -> bool:
@@ -532,11 +406,8 @@ class MapBom(capycli.common.script_base.ScriptBase):
         # retrieve missing types later
         purl_types = set()
         for component in sbom.components:
-
-            if component.purl:
-                p = component.purl.to_string()
-                if len(p) > 8 and p.startswith("pkg:"):
-                    purl_types.add(p[4:7])
+            if component.purl and component.purl.type:
+                purl_types.add(component.purl.type)
         self.external_id_svc.build_purl_cache(purl_types, self.verbosity <= 1)
 
         mapresult: list[MapResult] = []
@@ -779,7 +650,11 @@ class MapBom(capycli.common.script_base.ScriptBase):
                 newbom.components.add(newitem)
 
             # Sorted alternatives in descending version order
-            item.releases = sorted(item.releases, key=lambda x: ComparableVersion(x['Version']), reverse=True)
+            try:
+                item.releases = sorted(item.releases, key=lambda x: ComparableVersion(x['Version']), reverse=True)
+            except ValueError:
+                pass  # we can live with an unsorted list
+
             for match_item in item.releases:
                 if self.is_good_match(match_item["MapResult"]):
                     newitem = self.update_bom_item(item.component, match_item)
@@ -841,7 +716,7 @@ class MapBom(capycli.common.script_base.ScriptBase):
             cachefile, True, token, oauth2=oauth2, url=sw360_url)
         return rel_data
 
-    def map_bom_commons(self, component: Component) -> Tuple[MapResult, str, str]:
+    def map_bom_commons(self, component: Component) -> Tuple[MapResult, Optional[str], Optional[str]]:
         """
         Common parts to map from a SBOM component to the SW360 component/release.
         :param bomitem: SBOM component

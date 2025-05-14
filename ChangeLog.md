@@ -1,14 +1,53 @@
 <!--
-# SPDX-FileCopyrightText: (c) 2018-2024 Siemens
+# SPDX-FileCopyrightText: (c) 2018-2025 Siemens
 # SPDX-License-Identifier: MIT
 -->
 
 # CaPyCli - Clearing Automation Python Command Line Tool for SW360
 
-## NEXT
+## 2.8.0
+
+* fix in legacy to cdx convert fix for componentId.
+* documentation fixes.
+* improvements in pulling package-urls from SW360.
+* pyjwt update to >= 2.4.0 due to CVE-2022-29217.
+* CaPyCLI now supports color console output also when running in GitLab CI.
+* `bom map` fix: In few cases with --nocache, it added mixed matches to output
+  BOM, now we assure that only the best mapping results are added.
+* `project createbom` stores release relations (`CONTAINED`, `SIDE_BY_SIDE` etc.) as capycli:projectRelation
+* `project update`: optimized handling of release mainline state and release relation. Now states
+  provided in the SBOM are used and slowdowns/crashes introduced in 2.7.0 (#121) fixed again.
+* `bom createreleases` does now also set/update the license information for SW360 releases.
+* `getdependencies python` has now an improved detection for licenses.
+* Dependency updates.
+
+## 2.7.0
+
+* fix for `bom findsources` for some JavaScript SBOMs.
+* `bom show` command also lists purl and source code download url in verbose mode.
+  If one of the values is missing and `--forceerror` has been specified, error code 97 is returned.
+* `bom show` command also lists license information in verbose mode, but
+  only for CycloneDX 1.6 and later.
+* `bom validate` now also uses `-v` and `--forceerror` and uses the same `bom show` functionality
+  to check for missing purl or source code url.
+* until version 2.6.0, `project create` always set the Project Mainline State of a project release either
+  to SPECIFIC of to the value given by `-pms`. Now **existing** Project Mainline States are kept.
+* `project create` has a new parameter `--copy_from` which allows to first create a copy of the given
+  project and then update the releases based on the contents of the given SBOM.
+* fix for `bom map` losing SBOM items when it tries to map to invalid SW360 releases.
+* fix issue with setting external references (in `bom granularity`).
+
+## 2.6.0
 
 * `bom merge` improved: the dependencies are reconstructed, i.e. all dependencies
   that existed in the SBOMs before the merge should also exist after the merge.
+* `bom convert` improved: we can now convert from and to CycloneDX XML.
+* new command `bom validate` to do a simple validation whether a given SBOM
+  complies with the CycloneDX spec version 1.4, 1.5 or 1.6.
+* `bom findsources`: programming language can be `golang` or `go`.
+* support for the new CyCloneDX 1.6 external reference type `source-distribution`
+  when trying to find the source code for a component.
+* Dependency updates.
 
 ## 2.6.0.dev1
 

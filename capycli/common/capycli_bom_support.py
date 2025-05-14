@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------------
-# Copyright (c) 2023-2024 Siemens
+# Copyright (c) 2023-2025 Siemens
 # All Rights Reserved.
 # Author: thomas.graf@siemens.com
 #
@@ -10,8 +10,9 @@ import json
 import os
 import pathlib
 from enum import Enum
-from typing import Any, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
+from cyclonedx.exception import MissingOptionalDependencyException
 from cyclonedx.factory.license import LicenseFactory
 from cyclonedx.model import ExternalReference, ExternalReferenceType, HashAlgorithm, HashType, Property, XsUri
 from cyclonedx.model.bom import Bom
@@ -19,12 +20,22 @@ from cyclonedx.model.component import Component, ComponentType
 from cyclonedx.model.contact import OrganizationalEntity
 from cyclonedx.model.definition import Definitions, Standard
 from cyclonedx.model.tool import ToolRepository
+from cyclonedx.output import make_outputter
 from cyclonedx.output.json import JsonV1Dot6
+from cyclonedx.schema import OutputFormat, SchemaVersion
+from cyclonedx.validation.json import JsonStrictValidator
+
+if TYPE_CHECKING:
+    from cyclonedx.output.json import Json as JsonOutputter
+    from cyclonedx.output.xml import Xml as XmlOutputter
+
+from defusedxml import ElementTree as SafeElementTree  # type:ignore[import-untyped]
 from sortedcontainers import SortedSet
 
 import capycli.common.script_base
 from capycli import LOG
 from capycli.common import json_support
+from capycli.common.print import print_green, print_yellow
 from capycli.main.exceptions import CaPyCliException
 
 # -------------------------------------
@@ -55,6 +66,7 @@ class CycloneDxSupport():
     CDX_PROP_CLEARING_STATE = "capycli:clearingState"
     CDX_PROP_CATEGORIES = "capycli:categories"
     CDX_PROP_PROJ_STATE = "capycli:projectClearingState"
+    CDX_PROP_PROJ_RELATION = "capycli:projectRelation"
     CDX_PROP_PROFILE = "siemens:profile"
 
     @staticmethod
@@ -113,10 +125,16 @@ class CycloneDxSupport():
     @staticmethod
     def set_ext_ref(comp: Component, type: ExternalReferenceType, comment: str, value: str,
                     hash_algo: str = "", hash: str = "") -> None:
-        ext_ref = ExternalReference(
-            type=type,
-            url=XsUri(value),
-            comment=comment)
+        if isinstance(value, XsUri):
+            ext_ref = ExternalReference(
+                type=type,
+                url=value,
+                comment=comment)
+        else:
+            ext_ref = ExternalReference(
+                type=type,
+                url=XsUri(value),
+                comment=comment)
 
         if hash_algo and hash:
             ext_ref.hashes.add(HashType(
@@ -134,7 +152,10 @@ class CycloneDxSupport():
                 break
 
         if ext_ref:
-            ext_ref.url = XsUri(value)
+            if isinstance(value, XsUri):
+                ext_ref.url = value
+            else:
+                ext_ref.url = XsUri(value)
         else:
             CycloneDxSupport.set_ext_ref(comp, type, comment, value)
 
@@ -187,6 +208,10 @@ class CycloneDxSupport():
         for ext_ref in comp.external_references:
             if (ext_ref.type == ExternalReferenceType.DISTRIBUTION) \
                     and (ext_ref.comment == CaPyCliBom.SOURCE_URL_COMMENT):
+                return ext_ref.url
+
+            # new for CyCloneDX 1.6
+            if (ext_ref.type == ExternalReferenceType.SOURCE_DISTRIBUTION):
                 return ext_ref.url
 
         return ""
@@ -244,6 +269,33 @@ class CycloneDxSupport():
 class SbomCreator():
     def __init__(self) -> None:
         pass
+
+    @staticmethod
+    def remove_all_tools(sbom: Bom) -> None:
+        """Remove all existing tool entries."""
+        if (not sbom) or (not sbom.metadata) or (not sbom.metadata.tools):
+            return
+
+        if not sbom.metadata.tools.components:
+            return
+
+        sbom.metadata.tools.components.clear()
+
+    @staticmethod
+    def has_capycli_tool(sbom: Bom) -> bool:
+        """Checks whether CaPyCLI is already set as tool."""
+        if (not sbom) or (not sbom.metadata) or (not sbom.metadata.tools):
+            return False
+
+        if not sbom.metadata.tools.components:
+            return False
+
+        comp: Component
+        for comp in sbom.metadata.tools.components:
+            if comp.name == "CaPyCLI":
+                return True
+
+        return False
 
     @staticmethod
     def get_capycli_tool(version: str = "") -> Component:
@@ -386,11 +438,12 @@ class SbomWriter():
 
     @classmethod
     def write_to_json(cls, sbom: Bom, outputfile: str, pretty_print: bool = False) -> None:
-        SbomWriter._remove_tool_python_lib(sbom)
-        if len(sbom.metadata.tools) == 0:
+        """Write CaPyCLI/CycloneDX JSON."""
+        SbomCreator.remove_all_tools(sbom)
+        if not SbomCreator.has_capycli_tool(sbom):
             sbom.metadata.tools.components.add(SbomCreator.get_capycli_tool())
 
-        writer = JsonV1Dot6(sbom)
+        writer: 'JsonOutputter' = JsonV1Dot6(sbom)
         cls.remove_empty_properties_in_sbom(sbom)
 
         if pretty_print:
@@ -398,6 +451,20 @@ class SbomWriter():
             json_support.write_json_to_file(json.loads(jsondata), outputfile)
         else:
             writer.output_to_file(filename=outputfile, allow_overwrite=True)
+
+    @classmethod
+    def write_to_xml(cls, sbom: Bom, outputfile: str, pretty_print: bool = False) -> None:
+        """Write CaPyCLI/CycloneDX XML."""
+        SbomCreator.remove_all_tools(sbom)
+        if not SbomCreator.has_capycli_tool(sbom):
+            sbom.metadata.tools.components.add(SbomCreator.get_capycli_tool())
+        cls.remove_empty_properties_in_sbom(sbom)
+
+        writer: 'XmlOutputter' = make_outputter(sbom, OutputFormat.XML, SchemaVersion.V1_6)
+        if pretty_print:
+            writer.output_to_file(outputfile, indent=2)
+        else:
+            writer.output_to_file(outputfile)
 
 
 class CaPyCliBom():
@@ -420,17 +487,21 @@ class CaPyCliBom():
             except Exception as exp:
                 raise CaPyCliException("Error reading raw JSON file: " + str(exp))
 
-            # my_json_validator = JsonStrictValidator(SchemaVersion.V1_6)
-            # try:
-            #     validation_errors = my_json_validator.validate_str(json_string)
-            #     if validation_errors:
-            #         raise CaPyCliException("JSON validation error: " + repr(validation_errors))
-            #
-            #     print_green("JSON file successfully validated")
-            # except MissingOptionalDependencyException as error:
-            #     print_yellow('JSON-validation was skipped due to', error)
             bom = Bom.from_json(  # type: ignore[attr-defined]
                 json_data)
+            return bom
+
+    @classmethod
+    def read_sbom_xml(cls, inputfile: str) -> Bom:
+        LOG.debug(f"Reading from file {inputfile}")
+        with open(inputfile) as fin:
+            try:
+                xml_data = fin.read()
+            except Exception as exp:
+                raise CaPyCliException("Error reading raw XML file: " + str(exp))
+
+            bom = Bom.from_xml(  # type: ignore[attr-defined]
+                SafeElementTree.fromstring(xml_data))
             return bom
 
     @classmethod
@@ -445,6 +516,22 @@ class CaPyCliBom():
         LOG.debug("done")
 
     @classmethod
+    def write_sbom_xml(cls, sbom: Bom, outputfile: str) -> None:
+        LOG.debug(f"Writing to file {outputfile}")
+        try:
+            # always add/update profile
+            SbomCreator.add_profile(sbom, "clearing")
+
+            # ensure that file does exist
+            if os.path.isfile(outputfile):
+                os.remove(outputfile)
+
+            SbomWriter.write_to_xml(sbom, outputfile, pretty_print=True)
+        except Exception as exp:
+            raise CaPyCliException("Error writing CaPyCLI file: " + str(exp))
+        LOG.debug("done")
+
+    @classmethod
     def write_simple_sbom(cls, bom: SortedSet, outputfile: str) -> None:
         LOG.debug(f"Writing to file {outputfile}")
         try:
@@ -454,3 +541,40 @@ class CaPyCliBom():
         except Exception as exp:
             raise CaPyCliException("Error writing CaPyCLI file: " + str(exp))
         LOG.debug("done")
+
+    @classmethod
+    def _string_to_schema_version(cls, spec_version: str) -> SchemaVersion:
+        """Convert the given string to a CycloneDX spec version."""
+        if spec_version == "1.6":
+            return SchemaVersion.V1_6
+        if spec_version == "1.5":
+            return SchemaVersion.V1_5
+        if spec_version == "1.4":
+            return SchemaVersion.V1_4
+
+        print_yellow("Unknown CycloneDX spec version, defaulting to 1.6")
+        return SchemaVersion.V1_6
+
+    @classmethod
+    def validate_sbom(cls, inputfile: str, spec_version: str, show_success: bool = True) -> bool:
+        """Validate the given SBOM file against the given CycloneDX spec. version."""
+        LOG.debug(f"Validating SBOM from file {inputfile}")
+        with open(inputfile) as fin:
+            try:
+                json_string = fin.read()
+            except Exception as exp:
+                raise CaPyCliException("Error reading raw JSON file: " + str(exp))
+
+            my_json_validator = JsonStrictValidator(cls._string_to_schema_version(spec_version))
+            try:
+                validation_errors = my_json_validator.validate_str(json_string)
+                if validation_errors:
+                    raise CaPyCliException("JSON validation error: " + repr(validation_errors))
+
+                if show_success:
+                    print_green("JSON file successfully validated.")
+                return True
+            except MissingOptionalDependencyException as error:
+                print_yellow('JSON-validation was skipped due to', error)
+
+            return False

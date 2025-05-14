@@ -1,5 +1,5 @@
 <!--
-# SPDX-FileCopyrightText: (c) 2018-2024 Siemens
+# SPDX-FileCopyrightText: (c) 2018-2025 Siemens
 # SPDX-License-Identifier: MIT
 -->
 
@@ -26,12 +26,34 @@ informs about the mapping result:
 * **`FULL_MATCH_BY_HASH` (2)** => Full match by source file hash
 * **`FULL_MATCH_BY_NAME_AND_VERSION` (3)** => Full match by name and version
 * **`MATCH_BY_FILENAME` (4)** => Match by source code filename
-* **`GOOD_MATCH_FOUND`** == `MATCH_BY_FILENAME` => successfully found a sifficiently good match
+* **`GOOD_MATCH_FOUND`** == `MATCH_BY_FILENAME` => successfully found a sufficiently good match
 * **`MATCH_BY_NAME` (5)** => Component found, but no version match
 * **`SIMILAR_COMPONENT_FOUND` (6)** => Component with similar name found, no version check done
 * **`NO_MATCH` (100)** => Component was not found
 
 In general you can say that the lower the number, the better the match.
+
+## Notes on id mapping / PackageURL mapping
+
+CaPyCli supports mapping releases by the PackageURL. As encoding of a
+PackageURL is not unique (some characters *may* use URL encoding, qualifiers
+can be given in random order etc.), we can't just do a string comparison, but
+instead *all* SW360 releases with PackageURLs (using external id `package-url`)
+are retrieved and decoded. When your input BOM specifies a `purl` field, then
+the PackageURL is compared field by field (type, namespace, name, version) for
+a `FULL_MATCH_BY_ID`.
+
+Also, components will be mapped by PackageURL and if a match is found, the
+`capycli:componentId` property will be added to the output BOM item. Components
+can be identified directly by their external id `package-url` or as fallback
+also by the `package-url`s of their releases.
+
+PackageURL subpath and qualifiers are currently ignored during PURL matching.
+
+Note that we consider PackageURLs as *unique identifier*, so if two releases or
+components have the *same* external ID, a warning will be printed and the
+external ids will be completely ignored and mapping will continue with the
+other search steps like by file hash, by name and version etc.
 
 ## Example 1: Very Simple, Full Match
 
@@ -256,6 +278,6 @@ that have been found on SW360.
 
 The rationale for the behavior to have the output SBOM of the mapping process contain
 **all** findings is  
-a) the user should have **the choice** to decided which component version to use  
+a) the user should have **the choice** to decide which component version to use  
 b) the user should be forced to consider **reuse** of already cleared components  
 c) it should not be needed to search manually SW360

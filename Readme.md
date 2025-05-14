@@ -1,5 +1,5 @@
 <!--
-# SPDX-FileCopyrightText: (c) 2018-2024 Siemens
+# SPDX-FileCopyrightText: (c) 2018-2025 Siemens
 # SPDX-License-Identifier: MIT
 -->
 
@@ -90,7 +90,7 @@ Commands and Sub-Commands
         Prerequisites     checks whether all prerequisites for a successful
                           software clearing are fulfilled
         Show              show project details
-        Licenses          show licenses of all cleared compponents
+        Licenses          show licenses of all cleared components
         Create            create or update a project on SW360
         Update            update an exiting project, preserving linked releases
         GetLicenseInfo    get license info of all project components
@@ -140,6 +140,13 @@ Options:
   -X DEBUG                                          Enable debug output
   --forceerror FORCE_ERROR                          force an error exit code in case of visual errors
 ```
+
+**Note about `--forceexit` and `--forceerror`**:  
+These options are not available for all commands. At the moment
+
+* `--forceexit` applies only to the `project vulnerabilities` command.
+* `--forceerror` applies only to the commands `project prerequisites`, `project getlicenseinfo`  
+   and `bom show`.
 
 ## Use Cases
 
@@ -254,7 +261,7 @@ This is a Python project managed using ```Poetry```.
 
 ## Copyright & License
 
-Copyright 2018-2024 Siemens
+Copyright 2018-2025 Siemens
 
 This program and the accompanying materials are made
 available under the terms of the MIT License.  
