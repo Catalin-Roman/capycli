@@ -208,13 +208,113 @@ class FindSources(capycli.common.script_base.ScriptBase):
            yield viable results,
            e.g. 'api.github.com:443/repos/sw360/capycli'.
         """
-        length_per_page = 100
-        page = 1
-        tags: List[Dict[str, Any]] = []
-        tag_url = "https://github.com/"+repository_url+"/refs?type=tag"
-        tmp = FindSources.github_request(tag_url, username, token)
-        tags = tmp['refs'] if 'refs' in tmp else []
-        return tags
+        url = 'api.github.com/repos/'
+        gh_ref = urlparse(github_ref, scheme='no_scheme')
+        if gh_ref.scheme == 'no_scheme':  # interpret @github_ref as OWNER/REPO
+            url += gh_ref.path
+        elif not gh_ref.netloc.endswith('github.com'):
+            raise ValueError(f'{github_ref} is not an expected @github_ref!')
+        elif gh_ref.path.startswith('/repos'):
+            url += gh_ref.path[6:]
+        else:
+            url += gh_ref.path
+        if url.endswith('.git'):
+            url = url[0:-4]
+        url = 'https://' + url.replace('//', '/')
+        repo = {}
+        while 'tags_url' not in repo and 'github.com' in url:
+            repo = GitHubSupport.github_request(url, self.github_name, self.github_token)
+            url = url.rsplit('/', 1)[0]  # remove last path segment
+        if 'tags_url' not in repo:
+            raise ValueError(f"Unable to make @github_ref {github_ref} work!")
+        return repo
+
+    def _get_link_page(self, res: requests.Response, which: str = 'next') -> int:
+        """Fetch only page number from link-header."""
+        try:
+            url = urlparse(res.links[which]['url'])
+            return int(parse_qs(url.query)['page'][0])
+        except KeyError:  # GitHub gave us only one results page
+            return 1
+
+    def get_matching_source_url(self, version: Any, github_ref: str,
+                                version_prefix: Any = None
+                                ) -> str:
+        """Find a URL to download source code from GitHub. We are
+           looking for the source code in @github_ref at @version.
+
+           We expect to match @version to an existing tag in the repo
+           identified by @github_ref. We want to have the source
+           code download URL of that existing tag!
+
+           In order to perform this matching, we must retrieve the tags
+           from GitHub and then analyse them. First, we use
+           get_matching_tag(). If that doesn't yield a positive result,
+           we try to infer a tag for @version, to prevent an exhaustive
+           search over all tags.
+        """
+        try:
+            repo = self._get_github_repo(github_ref)
+        except ValueError as err:
+            print_yellow("      " + str(err))
+            return ""
+
+        tags_url = repo['tags_url'] + '?per_page=100'
+        git_refs_url_tpl = repo['git_refs_url'].replace('{/sha}', '{sha}', 1)
+
+        res = GitHubSupport.github_request(tags_url, self.github_name,
+                                           self.github_token, return_response=True)
+        pages = self._get_link_page(res, 'last')
+        for _ in range(pages):  # we prefer this over "while True"
+            # note: in res.json() we already have the first results page
+            try:
+                tags = [tag for tag in res.json()
+                        if version_prefix is None
+                        or tag['name'].startswith(version_prefix)]
+                source_url = self.get_matching_tag(tags, version, tags_url)
+                if len(source_url) > 0:  # we found what we believe is
+                    return source_url    # the correct source_url
+
+            except (TypeError, KeyError, AttributeError):
+                # res.json() did not give us an iterable of things where
+                # 'name' is a viable index, for instance an error message
+                tags = []
+
+            new_prefixes = self.tag_cache.filter_and_cache(
+                repo['full_name'], version,  # cache key
+                [self.version_regex.split(tag['name'], 1)[0]
+                 for tag in tags
+                 if self.version_regex.search(tag['name']) is not None])
+
+            for prefix in new_prefixes:
+                url = git_refs_url_tpl.format(sha=f'/tags/{prefix}')
+                w_prefix = GitHubSupport.github_request(url, self.github_name,
+                                                        self.github_token)
+                if isinstance(w_prefix, dict):  # exact match
+                    w_prefix = [w_prefix]
+
+                # ORDER BY tag-name-length DESC
+                by_size = sorted([(len(tag['ref']), tag) for tag in w_prefix if 'ref' in tag],
+                                 key=lambda x: x[0])
+                w_prefix = [itm[1] for itm in reversed(by_size)]
+
+                transformed_for_get_matching_tags = [
+                    {'name': tag['ref'].replace('refs/tags/', '', 1),
+                     'zipball_url': tag['url'].replace(
+                        '/git/refs/tags/', '/zipball/refs/tags/', 1),
+                     } for tag in w_prefix]
+                source_url = self.get_matching_tag(
+                    transformed_for_get_matching_tags, version, tags_url)
+                if len(source_url) > 0:  # we found what we believe is
+                    return source_url    # the correct source_url
+            try:
+                url = res.links['next']['url']
+                res = GitHubSupport.github_request(url, self.github_name,
+                                                   self.github_token, return_response=True)
+            except KeyError:  # no more result pages
+                break
+        print_yellow("      No matching tag for version " + version + " found")
+        return ""
 
     def to_semver_string(self, version: str) -> str:
         """Bring all version information to a format we can compare."""
