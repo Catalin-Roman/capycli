@@ -232,7 +232,7 @@ class FindSources(capycli.common.script_base.ScriptBase):
                     w_prefix = [w_prefix]
 
                 # ORDER BY tag-name-length DESC
-                by_size = sorted([(len(tag['ref']), tag) for tag in w_prefix],
+                by_size = sorted([(len(tag['ref']), tag) for tag in w_prefix if 'ref' in tag],
                                  key=lambda x: x[0])
                 w_prefix = [itm[1] for itm in reversed(by_size)]
 
