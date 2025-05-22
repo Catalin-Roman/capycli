@@ -98,10 +98,9 @@ class MockProject:
             # Handle special case for response without 'ref'
             # (remove the 'ref' key from the dict)
             if UNITTEST_NO_REF in _url.path:
-                result = [{'url': item['zipball_url']
-                           .replace('/zipball/refs/tags/',
-                                    '/git/refs/tags/', 1)} for item in self.data
-                          if item.get('name', '').startswith(prefix)]
+                result = [
+                    {'url': item['zipball_url'].replace('/zipball/refs/tags/', '/git/refs/tags/', 1)}
+                    for item in self.data if item.get('name', '').startswith(prefix)]
             elif '/zipball/refs/tags/' in _url.path:
                 result = ''
         try:

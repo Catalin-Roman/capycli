@@ -234,8 +234,7 @@ class FindSources(capycli.common.script_base.ScriptBase):
                 # ORDER BY tag-name-length DESC
                 # Note: it may happen that the GithHubSupport.github_request
                 # returns items without 'ref'
-                by_size = sorted([(len(tag.get('ref', '')), tag) for tag in w_prefix],
-                                 key=lambda x: x[0])
+                by_size = sorted([(len(tag.get('ref', '')), tag) for tag in w_prefix], key=lambda x: x[0])
                 w_prefix = [itm[1] for itm in reversed(by_size)]
 
                 transformed_for_get_matching_tags = [
