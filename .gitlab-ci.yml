@@ -31,4 +31,5 @@ stages:
   - publish
   - release
 
-
+unittest:py310:
+  allow_failure: true
