@@ -762,9 +762,12 @@ class MapBom(capycli.common.script_base.ScriptBase):
         # search release and component by purl which is independent of the component cache.
         if component.purl:
             result.component_hrefs = self.external_id_svc.search_components_by_purl(component.purl)
-            r = self.external_id_svc.search_releases_by_purl(component.purl, self.qualifier_match)
-            result.release_hrefs = r["hrefs"]
-            result.release_hrefs_results = r["results"]
+
+            if component.purl.version is not None:
+                # if we have a version, search for releases by purl.
+                # We do not get a version for the components that get merged from the metadata
+                # section of the SBOM and are 3rd party components"
+                result.release_hrefs = self.external_id_svc.search_releases_by_purl(component.purl)
 
         return result
 
