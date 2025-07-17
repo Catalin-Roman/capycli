@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2.9.5
+2025-07-17
+
+### Fixes
+
+- fix unit tests; manual version bump to v2.9.5 (24407bf852c35843733c45dc113e779a320d47ea)
+
 ## 2.9.4
 2025-07-17
 
