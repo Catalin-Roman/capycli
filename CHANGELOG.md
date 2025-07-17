@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2.9.6
+2025-07-17
+
+### Fixes
+
+- initial version of pre-commit config (45cde7a1f522c3f9f5d7737dc4ff360c680efcc8)
+
 ## 2.9.5
 2025-07-17
 
