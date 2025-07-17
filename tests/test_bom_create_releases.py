@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------------
-# Copyright (c) 2021-2024 Siemens
+# Copyright (c) 2021-2025 Siemens
 # All Rights Reserved.
 # Author: gernot.hillier@siemens.com, thomas.graf@siemens.com
 #
@@ -9,6 +9,7 @@
 """unit tests for bom/create_components.py in createreleases mode"""
 from typing import Any, Dict, Tuple
 
+import pytest
 import responses
 from cyclonedx.model import ExternalReference, ExternalReferenceType, HashAlgorithm, HashType, XsUri
 from cyclonedx.model.bom import Bom
@@ -18,7 +19,7 @@ from packageurl import PackageURL
 import capycli.bom.create_components
 from capycli.common.capycli_bom_support import CaPyCliBom, CycloneDxSupport
 from capycli.common.map_result import MapResult
-from tests.test_base_vcr import SW360_BASE_URL, CapycliTestBase
+from tests.test_base import SW360_BASE_URL
 
 
 def upload_matcher(filename: str, filetype: str = "SOURCE", comment: str = "") -> Any:
@@ -44,7 +45,13 @@ def upload_matcher(filename: str, filetype: str = "SOURCE", comment: str = "") -
     return match
 
 
-class CapycliTestBomCreate(CapycliTestBase):
+class TestBomCreate:
+    @pytest.fixture(autouse=True)
+    def capsys(self, capsys: Any) -> None:
+        """internal helper to access stdout/stderr captured by pytest"""
+        self.capsys = capsys  # type: ignore
+
+    @pytest.fixture(autouse=True)
     @responses.activate
     def setUp(self) -> None:
         self.app = capycli.bom.create_components.BomCreateComponents(onlyCreateReleases=True)
@@ -179,7 +186,8 @@ class CapycliTestBomCreate(CapycliTestBase):
                 "name": "activemodel",
                 "componentId": "06a6e5",
                 "version": "5.2.1-1.debian",
-                "mainlineState": "OPEN"})],
+                "mainlineState": "OPEN",
+                "additionalData": {"createdWith": capycli.get_app_signature()}})],
             # server answer with created release data
             json={"version": "5.2.1-1.debian",
                   "_links": {"self": {
@@ -283,7 +291,8 @@ class CapycliTestBomCreate(CapycliTestBase):
                 "name": "activemodel",
                 "componentId": "06a6e5",
                 "version": "5.2.1-1.debian",
-                "mainlineState": "OPEN"})],
+                "mainlineState": "OPEN",
+                "additionalData": {"createdWith": capycli.get_app_signature()}})],
             # server answer with created release data
             json={"version": "5.2.1-1.debian",
                   "_links": {"self": {
@@ -352,7 +361,8 @@ class CapycliTestBomCreate(CapycliTestBase):
                 "name": "activemodel",
                 "componentId": "06a6e5",
                 "version": "5.2.4.3",
-                "mainlineState": "OPEN"})],
+                "mainlineState": "OPEN",
+                "additionalData": {"createdWith": capycli.get_app_signature()}})],
             # server answer with created release data
             json={"version": "5.2.4.3",
                   "_links": {"self": {
@@ -473,7 +483,8 @@ class CapycliTestBomCreate(CapycliTestBase):
                 "componentId": "06a6e5",
                 "sourceCodeDownloadurl": "https://rubygems.org/gems/activemodel-5.2.1.gem",
                 "version": "5.2.1",
-                "mainlineState": "OPEN"})],
+                "mainlineState": "OPEN",
+                "additionalData": {"createdWith": capycli.get_app_signature()}})],
             # server answer with created release data
             json={"_links": {"self": {
                 "href": SW360_BASE_URL + "releases/06a6e7"}}})
@@ -520,7 +531,8 @@ class CapycliTestBomCreate(CapycliTestBase):
                 "componentId": "06a6e5",
                 # "sourceCodeDownloadurl": "",
                 "mainlineState": "OPEN",
-                "version": "5.2.1"})],
+                "version": "5.2.1",
+                "additionalData": {"createdWith": capycli.get_app_signature()}})],
             # server answer with created release data
             json={"_links": {"self": {
                 "href": SW360_BASE_URL + "releases/06a6e7"}}})
@@ -652,6 +664,12 @@ class CapycliTestBomCreate(CapycliTestBase):
             CaPyCliBom.SOURCE_URL_COMMENT, my_url)
         self.app.upload_file(item, {}, "06a6e7", "SOURCE_SELF", "")
 
+        # local filename with file:// prefix
+        CycloneDxSupport.update_or_set_ext_ref(
+            item, ExternalReferenceType.DISTRIBUTION,
+            CaPyCliBom.SOURCE_FILE_COMMENT, "file://Readme.md")
+        self.app.upload_file(item, {}, "06a6e7", "SOURCE_SELF", "")
+
         # local filename guessed from remote url
         item = Component(
             name="activemodel",
@@ -663,9 +681,10 @@ class CapycliTestBomCreate(CapycliTestBase):
             CaPyCliBom.SOURCE_URL_COMMENT, my_url)
         self.app.upload_file(item, {}, "06a6e7", "SOURCE_SELF", "")
 
-        assert len(responses.calls) == 2
+        assert len(responses.calls) == 3
         captured = self.capsys.readouterr()  # type: ignore
         assert "Error" not in captured.out
+        assert "not found" not in captured.out
         assert captured.err == ""
 
     @responses.activate
@@ -1166,9 +1185,3 @@ class CapycliTestBomCreate(CapycliTestBase):
         assert len(responses.calls) <= 1
         assert "Error" not in captured.out
         assert captured.err == ""
-
-
-if __name__ == '__main__':
-    APP = CapycliTestBomCreate()
-    APP.setUp()
-    APP.test_upload_file_allow_git_binary_upload()

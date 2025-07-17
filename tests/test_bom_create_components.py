@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------------
-# Copyright (c) 2021-2023 Siemens
+# Copyright (c) 2021-2025 Siemens
 # All Rights Reserved.
 # Author: gernot.hillier@siemens.com, thomas.graf@siemens.com
 #
@@ -20,8 +20,7 @@ import capycli.bom.create_components
 from capycli.bom.create_components import BomCreateComponents
 from capycli.common.capycli_bom_support import CycloneDxSupport
 from capycli.main.result_codes import ResultCode
-from tests.test_base import AppArguments, TestBase
-from tests.test_base_vcr import SW360_BASE_URL
+from tests.test_base import SW360_BASE_URL, AppArguments, TestBase
 
 
 class CapycliTestBomCreateComponents(TestBase):
@@ -47,7 +46,8 @@ class CapycliTestBomCreateComponents(TestBase):
             "name": "activemodel", "componentType": "OSS",
             "description": "something", "categories": ["devel"],
             "homepage": "http://test.org", "languages": ["Ruby"],
-            "externalIds": {"package-url": "pkg:gem/activemodel"}}
+            "externalIds": {"package-url": "pkg:gem/activemodel"},
+            "additionalData": {"createdWith": capycli.get_app_signature()}}
 
         responses.add(
             responses.POST,
@@ -62,7 +62,8 @@ class CapycliTestBomCreateComponents(TestBase):
         release_data = {"name": "activemodel", "version": "5.2.4.3",
                         "mainlineState": "OPEN", "languages": ["Ruby"],
                         "sourceCodeDownloadurl": "http://test.org",
-                        "externalIds": {"package-url": "pkg:gem/activemodel@5.2.4.3"}}
+                        "externalIds": {"package-url": "pkg:gem/activemodel@5.2.4.3"},
+                        "additionalData": {"createdWith": capycli.get_app_signature()}}
         responses.add(
             responses.POST,
             SW360_BASE_URL + 'releases',
@@ -114,7 +115,8 @@ class CapycliTestBomCreateComponents(TestBase):
                 "name": "activemodel",
                 "componentId": "06a6e5",
                 "version": "5.2.4.3",
-                "mainlineState": "OPEN"})],
+                "mainlineState": "OPEN",
+                "additionalData": {"createdWith": capycli.get_app_signature()}})],
             # server answer with created release data
             json={"version": "5.2.4.3",
                   "_links": {"self": {
