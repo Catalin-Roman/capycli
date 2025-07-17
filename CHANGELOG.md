@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2.9.3
+2025-07-17
+
+### Fixes
+
+- declare version 2.9.2; use sw360 ^1.10.0; update poetry.lock (04a61150628746eeff74e5f270ff6d2d19e2d283)
+
 ## 2.6.0
 2024-11-11
 
