@@ -1,13 +1,13 @@
 include:
   - project: 'camelot/support/templates/gitlab-releases-ci-template'
-    ref: 'v1.0.3'
+    ref: 'v2.1.0'
     file: '/templates/changelog.and.releases.yml'  # not ideal with Python
     #file: '/templates/changelog.and.releases.pep440.yml'    # better with Python
   - project: 'camelot/support/templates/python-ci-template'
-    ref: 'v5.8.16'
+    ref: 'v5.9.84'
     file: '/templates/python.single.yml'
   - project: 'camelot/support/templates/python-ci-template'
-    ref: 'v5.8.16'
+    ref: 'v5.9.84'
     file: '/templates/python.publish.yml'
 
 
@@ -18,8 +18,8 @@ variables:
   PYTHON_TEST_CODE_PATH: "tests"
   # Disable Code Quality Check
   ENABLE_CODE_QUALITY_CHECK: "false"
-  SONAR_JOBS_ACTIVE: "true"
-  ENABLE_PYTHON_PRECOMMIT: "True"
+  SONAR_JOBS_ACTIVE: "false"
+  ENABLE_PYTHON_PRECOMMIT: "false"
   BASE_IMAGE_REF: "bookworm"
 
 stages:
