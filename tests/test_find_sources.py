@@ -207,8 +207,7 @@ class TestFindSources(TestBase):
         else:
             return []
 
-    @patch('capycli.bom.findsources.FindSources.github_request')
-    def test_find_sources(self, mock_github_request: Any) -> None:
+    def test_find_sources(self) -> None:
         sut = FindSources()
 
         # create argparse command line argument object
@@ -221,7 +220,6 @@ class TestFindSources(TestBase):
         args.debug = True
         args.verbose = True
 
-        mock_github_request.side_effect = self.mock_github_request_side_effect
         out = self.capture_stdout(sut.run, args)
         self.assertTrue(self.INPUTFILE in out)
         self.assertTrue(self.OUTPUTFILE in out)
@@ -279,37 +277,6 @@ class TestFindSources(TestBase):
             str(CycloneDxSupport.get_ext_ref_source_url(sbom.components[7])))
 
         self.delete_file(args.outputfile)
-
-    def test_get_repo_name(self) -> None:
-        # simple
-        repo = "https://github.com/JamesNK/Newtonsoft.Json"
-        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
-
-        self.assertEqual("JamesNK/Newtonsoft.Json", actual)
-
-        # trailing .git
-        repo = "https://github.com/restsharp/RestSharp.git"
-        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
-
-        self.assertEqual("restsharp/RestSharp", actual)
-
-        # trailing #readme
-        repo = "https://github.com/restsharp/RestSharp#readme"
-        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
-
-        self.assertEqual("restsharp/RestSharp", actual)
-
-        # prefix git
-        repo = "git://github.com/restsharp/RestSharp#readme"
-        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
-
-        self.assertEqual("restsharp/RestSharp", actual)
-
-        # prefix git+https
-        repo = "git+https://github.com/restsharp/RestSharp#readme"
-        actual = capycli.bom.findsources.FindSources.get_repo_name(repo)
-
-        self.assertEqual("restsharp/RestSharp", actual)
 
     def test_normalize_version(self) -> None:
         sut = FindSources()
@@ -402,7 +369,7 @@ class TestFindSources(TestBase):
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, "")
         # test Empty tag string
-        tagInfo = [emptyString]
+        tagInfo = [{"name": emptyString, "zipball_url": zipball_url}]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, '')
         # test Empty url string ***INVALID***
@@ -410,11 +377,11 @@ class TestFindSources(TestBase):
         # actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         # self.assertEqual(actual, "")
         # test non-matching tag
-        tagInfo = [invalidTag]
+        tagInfo = [{"name": invalidTag, "zipball_url": zipball_url}]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, '')
         # test valid tag
-        tagInfo = [validTag]
+        tagInfo = [{"name": validTag, "zipball_url": zipball_url}]
         actual = capycli.bom.findsources.FindSources.get_matching_tag(findResource, tagInfo, validTag, githubUrl)
         self.assertEqual(actual, sourceUrl)
 
