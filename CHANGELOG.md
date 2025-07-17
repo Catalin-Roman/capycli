@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2.9.4
+2025-07-17
+
+### Fixes
+
+- add Merge Request template; manual version bump to 2.9.4 (dec0d4ae3eac8ffbef87dc08de92e2910e562310)
+
 ## 2.9.3
 2025-07-17
 
