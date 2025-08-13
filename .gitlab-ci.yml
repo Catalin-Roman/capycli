@@ -1,6 +1,6 @@
 include:
   - project: 'camelot/support/templates/gitlab-releases-ci-template'
-    ref: 'v2.1.0'
+    ref: 'v2.2.0'
     file: '/templates/changelog.and.releases.yml'  # not ideal with Python
     #file: '/templates/changelog.and.releases.pep440.yml'    # better with Python
   - project: 'camelot/support/templates/python-ci-template'
@@ -21,6 +21,7 @@ variables:
   SONAR_JOBS_ACTIVE: "false"
   ENABLE_PYTHON_PRECOMMIT: "false"
   BASE_IMAGE_REF: "bookworm"
+  SEMREL_CHANGELOG_FILE: "CHANGELOG_camelot.md"
 
 stages:
   - version
