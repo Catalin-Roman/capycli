@@ -111,7 +111,9 @@ create-github-pull-request:
         \"body\": \"This PR was created automatically from GitLab CI/CD.\"
       }"
   when: manual
-  only:
-    - $PULL_REQUEST_BRANCH
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_REF_NAME == $PULL_REQUEST_BRANCH'
+      when: manual
+    - when: never
   tags:
     - "$CI_RUNNER_TAG_SHARED"
