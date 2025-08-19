@@ -23,6 +23,9 @@ variables:
   BASE_IMAGE_REF: "bookworm"
   SEMREL_CHANGELOG_FILE: "CHANGELOG_camelot.md"
   PULL_BRANCH_NAME: "pull-from-upstream"
+  PULL_REQUEST_BRANCH: "create-pull-request"
+  GITHUB_USERNAME: "Catalin-Roman" # TODO Replace
+  GITHUB_REPO: "capycli" # TODO Replace
 
 stages:
   - version
@@ -79,5 +82,35 @@ pull:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: always
+  tags:
+    - "$CI_RUNNER_TAG_SHARED"
+
+
+create-pull-request:
+  stage: sync-with-upstream
+  image: cr.siemens.com/camelot/support/container/gitlab-runner/curl:v0.12.20
+  before_script:
+  - export http_proxy=${CODE_PROXY}
+  - export https_proxy=${CODE_PROXY}
+  - export no_proxy=127.0.0.1,localhost,.siemens.de,.siemens.net,.siemens.com,.siemens.io,s3.dualstack.eu-central-1.amazonaws.com
+  script:
+    - echo "Creating pull request from $PULL_REQUEST_BRANCH ':' to upstream repository..."
+    - git config --global user.email "${GIT_AUTOMATION_EMAIL}"
+    - git config --global user.name "${GIT_AUTOMATION_NAME}"
+    - git config --list | grep user
+    - curl --version
+    - |
+      curl --request POST "https://api.github.com/repos/$GITHUB_USERNAME/$GITHUB_REPO/pulls" \
+      --header "Authorization: token $GITHUB_TOKEN" \
+      --header "Content-Type: application/json" \
+      --data "{
+        \"title\": \"Auto PR from GitLab\",
+        \"head\": \"$PULL_REQUEST_BRANCH\",
+        \"base\": \"main\",
+        \"body\": \"This PR was created automatically from GitLab CI/CD.\"
+      }"
+  when: manual
+  only:
+    - $PULL_REQUEST_BRANCH
   tags:
     - "$CI_RUNNER_TAG_SHARED"
