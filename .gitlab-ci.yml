@@ -30,6 +30,7 @@ variables:
 stages:
   - version
   - pull-from-upstream
+  - create-pull-request
   - build
   - package
   - test
@@ -86,8 +87,8 @@ pull:
     - "$CI_RUNNER_TAG_SHARED"
 
 
-create-pull-request:
-  stage: sync-with-upstream
+create-github-pull-request:
+  stage: create-pull-request
   image: cr.siemens.com/camelot/support/container/gitlab-runner/curl:v0.12.20
   before_script:
   - export http_proxy=${CODE_PROXY}
