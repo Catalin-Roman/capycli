@@ -22,10 +22,11 @@ variables:
   ENABLE_PYTHON_PRECOMMIT: "false"
   BASE_IMAGE_REF: "bookworm"
   SEMREL_CHANGELOG_FILE: "CHANGELOG_camelot.md"
+  PULL_BRANCH_NAME: "pull-from-upstream"
 
 stages:
   - version
-  - sync-with-upstream
+  - pull-from-upstream
   - build
   - package
   - test
@@ -33,8 +34,8 @@ stages:
   - publish
   - release
 
-sync:
-  stage: sync-with-upstream
+pull:
+  stage: pull-from-upstream
   image: cr.siemens.com/camelot/support/container/gitlab-runner/curl:v0.12.20
   before_script:
   - export http_proxy=${CODE_PROXY}
@@ -54,24 +55,24 @@ sync:
     - git checkout upstream_main
     - git merge upstream/main -v
     - git push -o ci.skip -v
-    - git checkout -b sync-with-upstream
+    - git checkout -b ${PULL_BRANCH_NAME}
     - git log --oneline --decorate --graph --max-count 10
-    - git push origin sync-with-upstream --force -o ci.skip
+    - git push origin ${PULL_BRANCH_NAME} --force -o ci.skip
     - ls -al
     - git rebase origin/fork_main || echo "ERROR Rebase failed, continuing anyway"
     - |
       curl --request POST "https://code.siemens.com/api/v4/projects/399725/merge_requests" \
         --header "PRIVATE-TOKEN: ${GIT_AUTOMATION_TOKEN}" \
         --header "Content-Type: application/json" \
-        --data '{
-        "source_branch": "sync-with-upstream",
-        "target_branch": "fork_main",
-        "title": "Sync with upstream repository",
-        "description": "This merge request syncs the fork with the upstream repository.",
-        "remove_source_branch": true,
-        "squash": true,
-        "assignee_ids": [50618]
-        }'
+        --data "{
+          \"source_branch\": \"${PULL_BRANCH_NAME}\",
+          \"target_branch\": \"fork_main\",
+          \"title\": \"chore: pull from upstream repository\",
+          \"description\": \"This Merge Request pulls the changes from the upstream repository and applies them to the fork.\",
+          \"remove_source_branch\": true,
+          \"squash\": true,
+          \"assignee_ids\": [50618]
+        }"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: always
