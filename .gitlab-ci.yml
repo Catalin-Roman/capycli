@@ -95,7 +95,7 @@ create-github-pull-request:
   - export https_proxy=${CODE_PROXY}
   - export no_proxy=127.0.0.1,localhost,.siemens.de,.siemens.net,.siemens.com,.siemens.io,s3.dualstack.eu-central-1.amazonaws.com
   script:
-    - echo "Creating pull request from $PULL_REQUEST_BRANCH ':' to upstream repository..."
+    - echo "Creating pull request from $PULL_REQUEST_BRANCH to upstream repository..."
     - git config --global user.email "${GIT_AUTOMATION_EMAIL}"
     - git config --global user.name "${GIT_AUTOMATION_NAME}"
     - git config --list | grep user
@@ -106,7 +106,7 @@ create-github-pull-request:
       --header "Content-Type: application/json" \
       --data "{
         \"title\": \"Auto PR from GitLab\",
-        \"head\": \"$PULL_REQUEST_BRANCH\",
+        \"head\": \"${PULL_REQUEST_BRANCH}\",
         \"base\": \"main\",
         \"body\": \"This PR was created automatically from GitLab CI/CD.\"
       }"
