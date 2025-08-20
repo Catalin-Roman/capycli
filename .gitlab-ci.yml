@@ -106,7 +106,7 @@ create-github-pull-request:
       --header "Content-Type: application/json" \
       --data "{
         \"title\": \"Auto PR from GitLab\",
-        \"head\": \"${PULL_REQUEST_BRANCH}\",
+        \"head\": \"${GITHUB_USERNAME}:${PULL_REQUEST_BRANCH}\",
         \"base\": \"main\",
         \"body\": \"This PR was created automatically from GitLab CI/CD.\"
       }"
