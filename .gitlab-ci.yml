@@ -105,7 +105,7 @@ create-github-pull-request:
     - git remote -v
     - git checkout -b ${PULL_REQUEST_BRANCH}
     - git push origin ${PULL_REQUEST_BRANCH} -v
-    - git push upstream ${PULL_REQUEST_BRANCH} -v
+    - git push https://${GITHUB_USERNAME}:${GITHUB_TOKEN}@github.com/Catalin-Roman/capycli.git ${PULL_REQUEST_BRANCH} -v
     - curl --version
     - |
       curl --request POST "https://api.github.com/repos/$GITHUB_USERNAME/$GITHUB_REPO/pulls" \
