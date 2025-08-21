@@ -24,8 +24,13 @@ variables:
   SEMREL_CHANGELOG_FILE: "CHANGELOG_camelot.md"
   PULL_BRANCH_NAME: "pull-from-upstream"
   PULL_REQUEST_BRANCH: "create-pull-request"
-  GITHUB_USERNAME: "Catalin-Roman" # TODO Replace
-  GITHUB_REPO: "capycli" # TODO Replace
+  GITHUB_USERNAME: "Catalin-Roman" # TODO Replace : Used for pushing the Pull Request branch to the GitHub intermediate repo
+  GITHUB_INTERMEDIATE_USERNAME: "Catalin-Roman" # TODO Replace with the GitHub username associated with the Functional Account
+  GITHUB_INTERMEDIATE_REPO: "capycli-intermediate" # TODO Replace with the GitHub repository associated with the Functional Account
+  GITHUB_INTERMEDIATE_URL: "https://github.com/${GITHUB_INTERMEDIATE_USERNAME}/${GITHUB_INTERMEDIATE_REPO}.git"
+  GITHUB_CAPYCLI_USERNAME: "Catalin-Roman" # TODO Use "sw360"
+  GITHUB_CAPYCLI_REPO: "capycli"
+  GITHUB_CAPYCLI_URL: "https://github.com/${GITHUB_CAPYCLI_USERNAME}/${GITHUB_CAPYCLI_REPO}.git"
 
 stages:
   - version
@@ -95,27 +100,27 @@ create-github-pull-request:
   - export https_proxy=${CODE_PROXY}
   - export no_proxy=127.0.0.1,localhost,.siemens.de,.siemens.net,.siemens.com,.siemens.io,s3.dualstack.eu-central-1.amazonaws.com
   script:
-    - echo "Creating pull request from $PULL_REQUEST_BRANCH to upstream repository..."
+    - echo "Creating Pull Request FROM branch $PULL_REQUEST_BRANCH on GitLab project URL ${CI_PROJECT_URL} TO upstream GitHub repo ${GITHUB_CAPYCLI_URL} using INTERMEDIATE GitHub repo ${GITHUB_INTERMEDIATE_URL} "
     - git config --global user.email "${GIT_AUTOMATION_EMAIL}"
     - git config --global user.name "${GIT_AUTOMATION_NAME}"
     - git config --list | grep user
     - git remote -v
-    - git remote set-url origin https://${GIT_AUTOMATION_EMAIL}:${GIT_AUTOMATION_TOKEN}@code.siemens.com/camelot/tools/capycli.git
-    - git remote add upstream https://github.com/Catalin-Roman/capycli.git
+    - git remote add github-intermediate ${GITHUB_INTERMEDIATE_URL}
     - git remote -v
-    - git checkout -b ${PULL_REQUEST_BRANCH}
-    - git push origin ${PULL_REQUEST_BRANCH} -v
-    - git push https://${GITHUB_USERNAME}:${GITHUB_PUSH_TOKEN}@github.com/Catalin-Roman/capycli.git ${PULL_REQUEST_BRANCH} -v
-    - curl --version
+    - git checkout ${PULL_REQUEST_BRANCH}
+    # Push the branch to the intermediate GitHub repo
+    - git push https://${GITHUB_USERNAME}:${GITHUB_CONTENT_TOKEN}@github.com/${GITHUB_INTERMEDIATE_USERNAME}/${GITHUB_INTERMEDIATE_REPO}.git ${PULL_REQUEST_BRANCH} -v
+    # Create the Pull Request
     - |
-      curl --request POST "https://api.github.com/repos/$GITHUB_USERNAME/$GITHUB_REPO/pulls" \
-      --header "Authorization: token $GITHUB_TOKEN" \
+      curl --request POST "https://api.github.com/repos/${GITHUB_CAPYCLI_USERNAME}/${GITHUB_CAPYCLI_REPO}/pulls" \
+      --header "Authorization: token ${GITHUB_PULL_REQUEST_TOKEN}" \
       --header "Content-Type: application/json" \
       --data "{
         \"title\": \"Auto PR from GitLab\",
-        \"head\": \"Catalin-Roman:create-pull-request\",
+        \"head\": \"${GITHUB_INTERMEDIATE_USERNAME}:${PULL_REQUEST_BRANCH}\",
         \"base\": \"main\",
-        \"body\": \"This PR was created automatically from GitLab CI/CD.\"
+        \"body\": \"This PR was created automatically from GitLab CI/CD.\",
+        \"draft\": true
       }"
   when: manual
   rules:
