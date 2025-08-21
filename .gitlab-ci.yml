@@ -99,6 +99,13 @@ create-github-pull-request:
     - git config --global user.email "${GIT_AUTOMATION_EMAIL}"
     - git config --global user.name "${GIT_AUTOMATION_NAME}"
     - git config --list | grep user
+    - git remote -v
+    - git remote set-url origin https://${GIT_AUTOMATION_EMAIL}:${GIT_AUTOMATION_TOKEN}@code.siemens.com/camelot/tools/capycli.git
+    - git remote add upstream https://github.com/Catalin-Roman/capycli.git
+    - git remote -v
+    - git checkout -b ${PULL_REQUEST_BRANCH}
+    - git push origin ${PULL_REQUEST_BRANCH} -v
+    - git push upstream ${PULL_REQUEST_BRANCH} -v
     - curl --version
     - |
       curl --request POST "https://api.github.com/repos/$GITHUB_USERNAME/$GITHUB_REPO/pulls" \
