@@ -42,24 +42,27 @@ pull:
   - export https_proxy=${CODE_PROXY}
   - export no_proxy=127.0.0.1,localhost,.siemens.de,.siemens.net,.siemens.com,.siemens.io,s3.dualstack.eu-central-1.amazonaws.com
   script:
+    # Configure git and check curl
     - echo "Syncing with upstream repository..."
     - git config --global user.email "${GIT_AUTOMATION_EMAIL}"
     - git config --global user.name "${GIT_AUTOMATION_NAME}"
     - git config --list | grep user
     - curl --version
+    # Configure the remotes
     - git remote set-url origin https://${GIT_AUTOMATION_EMAIL}:${GIT_AUTOMATION_TOKEN}@code.siemens.com/camelot/tools/capycli.git
     - git remote add upstream https://github.com/sw360/capycli.git
     - git remote -v
+    # Update the local "upstream_main" branch with the changes from upstream/main and push the changes
     - git fetch upstream main -v
     - git status
     - git checkout upstream_main
-    - git merge upstream/main -v
-    - git push -o ci.skip -v
-    - git checkout -b ${PULL_BRANCH_NAME}
+    - git merge upstream/main -v # we expect no conflicts
     - git log --oneline --decorate --graph --max-count 10
+    - git push -o ci.skip -v
+    # Create the intermediate branch from fork_main and merge upstream_main into it
+    - git checkout -b ${PULL_BRANCH_NAME} origin/fork_main
     - git push origin ${PULL_BRANCH_NAME} --force -o ci.skip
-    - ls -al
-    - git rebase origin/fork_main || echo "ERROR Rebase failed, continuing anyway"
+    - git merge upstream_main || echo "ERROR Merge failed, continuing anyway"
     - |
       curl --request POST "https://code.siemens.com/api/v4/projects/399725/merge_requests" \
         --header "PRIVATE-TOKEN: ${GIT_AUTOMATION_TOKEN}" \

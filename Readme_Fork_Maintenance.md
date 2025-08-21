@@ -3,7 +3,7 @@
 [[_TOC_]]
 
 # 1. Required variables
-The synchronization of this fork with the upstream prject requires the following variables:
+The synchronization of this fork with the upstream project requires the following variables:
 
 | Name | Details | Default value |
 |------|---------|---------------|
@@ -17,21 +17,26 @@ The following branches are relevant:
 
 | Name | Details |
 |------|---------|
-| fork_main | The default branch of the fork repo (this repo) |
-| upstream_main | Contains only the upstream code (no upstream tags, no changes done by us) |
-| pull-from-upstream | Created from upstream_main and rebased on fork_main; used as source for the Merge Request (and for fixing conflicts) |
+| `fork_main` | The default branch of the fork repo (this repo) |
+| `upstream_main` | Contains only the upstream code (no upstream tags, no changes done by us) |
+| `pull-from-upstream` | Created from `fork_main`, it contains the changes from `upstream_main`; used as source for the Merge Request (and for fixing conflicts) |
 
 # 3. How it works
 
 1. There is a pipeline scheduled once per week
 2. The weekly pipeline does the following:
-    1. Merge the "upstream/main" into "upstream_main" (goal: keep an exact copy of the upstream main branch)(Note: without tags from upstream - would clober existing tags)
-    2. Create a branch named "pull-from-upstream" from the "upstream_main" branch
-    3. Rebase "pull-from-upstream" to "origin/fork_main"
-    4. Push the "pull-from-upstream" branch to "origin/pull-from-upstream" (regardless of conflicts)(use --force to override if the previous sync was not merged)
-    5. Create a Merge Request from "pull-from-upstream" to "fork_main"
-    6. If there are conflicts at Step 3 then they should be fixed on the "pull-from-upstream" branch
-    7. If the Merge Request looks good, then Merge !
+    1. Merge the `upstream/main` into `upstream_main`
+        1. The goal is to keep an exact copy of the upstream main branch
+        2. Note: without tags from upstream - would clober existing tags
+        3. Note: we don't expect any conflicts at this stage
+    2. Create a branch named `pull-from-upstream` from the `fork_main` branch
+    3. Merge `upstream_main` into `pull-from-upstream`
+        1. If there are conflicts then they should be fixed locally on this branch
+    4. Push the `pull-from-upstream` branch to `origin/pull-from-upstream`
+        1. The push happens regardless of conflicts
+        2. We use `--force` to override if the previous pull was not merged
+    5. Create a Merge Request from `pull-from-upstream` to `fork_main`
+    6. If the Merge Request looks good, then Merge !
 
 # 3. Links
 
