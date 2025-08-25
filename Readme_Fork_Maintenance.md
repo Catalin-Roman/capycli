@@ -68,16 +68,19 @@ The following branches are relevant:
 | PULL_REQUEST_BRANCH | create-pull-request | The name of the branch containing the code we want to be pushed to upstream |
 | PULL_REQUEST_TITLE | Pull Request from SI GSW R&D | The default title of the Pull Request |
 | PULL_REQUEST_BODY | This Pull Request was created by SI GSW R&D. | The default description of the Pull Request |
-| GITHUB_CONTENT_TOKEN | No default value | The token to be used for pushing the `create-pull-request` branch to the intermediate Github repo|
-| GITHUB_PULL_REQUEST_TOKEN | No default value | The token to be used for creating the Pull Request to upstream|
+| GITHUB_CONTENT_TOKEN | No default value | The token to be used for pushing the `create-pull-request` branch to the intermediate Github repo <br/> Required Scopes: Contents (Read and write), Workflows (Read and write) only if the intermediate Github repo is empty |
+| GITHUB_PULL_REQUEST_TOKEN | No default value | The token to be used for creating the Pull Request to upstream <br/> Required Scopes: Pull requests (Read and write) |
 
 ## 3. Relevant branches
 
 ## 4. isort and flake8 in VSCode
 
-We need to ensure that the code we want to push to upstream has been analyzied by flake8 and isort
+We need to ensure that the code we want to push to upstream has been analyzied by flake8 and isort.
 
-TODO
+- Install the flake8 and isort VSCode extensions (publisher: Microsoft) and enable them
+- If you're using multi-root workspaces, you can configure each folder individually by addind the `"flake8.enabled": true` line to the `.vscode/settings.json` file
+- *Note*: the isort settings are in the `.isort.cfg` and flake8 settings are in `tox.ini`
+
 
 # 3.
 Link to upstream (on GitHub): [CaPyCLI](https://github.com/sw360/capycli)
