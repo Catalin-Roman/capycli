@@ -116,8 +116,9 @@ create-github-pull-request:
     # Create the Pull Request
     - |
       curl --request POST "https://api.github.com/repos/${GITHUB_CAPYCLI_USERNAME}/${GITHUB_CAPYCLI_REPO}/pulls" \
-      --header "Authorization: token ${GITHUB_PULL_REQUEST_TOKEN}" \
+      --header "Authorization: Bearer ${GITHUB_PULL_REQUEST_TOKEN}" \
       --header "Content-Type: application/json" \
+      --header "Accept: application/vnd.github+json"
       --data "{
         \"title\": \"${PULL_REQUEST_TITLE}\",
         \"head\": \"${GITHUB_INTERMEDIATE_USERNAME}:${PULL_REQUEST_BRANCH}\",

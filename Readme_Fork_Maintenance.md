@@ -79,7 +79,9 @@ We need to ensure that the code we want to push to upstream has been analyzied b
 
 - Install the flake8 and isort VSCode extensions (publisher: Microsoft) and enable them
 - If you're using multi-root workspaces, you can configure each folder individually by addind the `"flake8.enabled": true` line to the `.vscode/settings.json` file
-- *Note*: the isort settings are in the `.isort.cfg` and flake8 settings are in `tox.ini`
+
+*Note*: the isort settings are in the `.isort.cfg` and flake8 settings are in `tox.ini`
+*Note*: the exact calls to isort and flake8 are in `.github/workflows/static-checks.yml`
 
 
 # 3.
