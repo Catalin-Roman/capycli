@@ -49,8 +49,9 @@ pull:
     - git config --list | grep user
     - curl --version
     # Configure the remotes
-    - git remote set-url origin https://${GIT_AUTOMATION_EMAIL}:${GIT_AUTOMATION_TOKEN}@code.siemens.com/camelot/tools/capycli.git
+    - git remote set-url origin https://${GIT_AUTOMATION_EMAIL}:${GL_TOKEN}@code.siemens.com/camelot/tools/capycli.git
     - git remote add upstream https://github.com/sw360/capycli.git
+    - git remote set-url upstream https://${GIT_AUTOMATION_EMAIL}:${GITHUB_COM_TOKEN}@github.com/sw360/capycli.git
     - git remote -v
     # Update the local "upstream_main" branch with the changes from upstream/main and push the changes
     - git fetch upstream main -v
@@ -65,7 +66,7 @@ pull:
     - git merge upstream_main || echo "ERROR Merge failed, continuing anyway"
     - |
       curl --request POST "https://code.siemens.com/api/v4/projects/399725/merge_requests" \
-        --header "PRIVATE-TOKEN: ${GIT_AUTOMATION_TOKEN}" \
+        --header "PRIVATE-TOKEN: ${GL_TOKEN}" \
         --header "Content-Type: application/json" \
         --data "{
           \"source_branch\": \"${PULL_BRANCH_NAME}\",
