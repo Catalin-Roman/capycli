@@ -9,7 +9,8 @@ The synchronization of this fork with the upstream project requires the followin
 |------|---------|---------------|
 | GIT_AUTOMATION_NAME | Used to configure Git user.name | git-automation-name|
 | GIT_AUTOMATION_EMAIL | Used to configure Git user.email | git-automation-email |
-| GIT_AUTOMATION_TOKEN |  - Used as the token for Git commands (e.g. git push) and Gitlab API (e.g. create Merge Request) <br/> - It's a Personal Access Token, see [Troubleshooting](https://docs.gitlab.com/18.1/user/profile/account/two_factor_authentication_troubleshooting/#error-http-basic-access-denied-if-a-password-was-provided-for-git-authentication-) <br/> - Required scopes: api, read_repository, write_repository| |
+| GITHUB_COM_TOKEN | - Configured for the `upstream` remote <br/> - Used for pulling from Github (to avoid rate limits) ||
+| GL_TOKEN | - Configured for the `origin` remote <br/> - Used for Git commands (e.g. git push) and Gitlab API (e.g. create Merge Request) <br/> - See [Troubleshooting](https://docs.gitlab.com/18.1/user/profile/account/two_factor_authentication_troubleshooting/#error-http-basic-access-denied-if-a-password-was-provided-for-git-authentication-) <br/> - Required scopes: api, read_repository, write_repository| |
 
 # 2. Relevant branches
 
