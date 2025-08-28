@@ -52,7 +52,7 @@ The following branches are relevant:
     1. The script checks if you already have a CaPyCLI fork in your GitHub account. If you don't, it will create one for you.
     2. The `new-si-gsw-feature` branch will be pushed to your fork
     3. The Pull Request will be created
-5. After the Pull Request is acceptedby the upstream Maintainers, pull the changes into `fork_main`
+5. After the Pull Request is acceptedby the upstream Maintainers, pull the changes into `fork_main` (see [Pull changes from upstream](#1-pull-changes-from-upstream))
 
 - What happens if the Maintainers of the upstream require more from you (for example: more unit test coverage) ?
     - Implement the required changes on the `new-si-gsw-feature` branch and push them to your GitHub repo. The changes will be reflected in the previously created Pull Request
