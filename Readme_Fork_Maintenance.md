@@ -44,24 +44,25 @@ The following branches are relevant:
 # 2. Push changes to upstream
 
 ## 1. How it works
-1. **Prerequisite**: the code we want to be pushed to upstream is merged into the `fork_main` branch
-2. **Prerequisite**: the `upstream_main` branch is up-to-date with `upstream/main`
-    1. Option 1: trigger a Pipeline from the "Pull from upstream" Schedule
-    2. Option 2: use git commands
-3. Create a branch from `upstream_main` named `create-pull-request`
-    1. *Note*: if you want to use a different name the you have to also set the `PULL_REQUEST_BRANCH` pipeline variable to match it
-4. Cherry-pick the commit representing the changes to be pushed to upstream into the `create-pull-request` branch
-    1. *Note*: the conflicts (if any) and the testing should be done on this branch
-5. Run a Pipeline on the `create-pull-request` branch to automagically generate a Pull Request in the upstream
-    1. The `create-pull-request` branch is first pushed to the intermediate Github repo
-        1. *Note*: a valid Github token must be set as value for the `GITHUB_CONTENT_TOKEN` variable (see [Variables](#2-variables))
-    2. The Pull Request is created from the intermediate Github repo to the upstream
-        1. *Note*: a valid Github token must be set as value for the `GITHUB_PULL_REQUEST_TOKEN` variable (see [Variables](#2-variables))
-    3. *Note*: the Pull Request is generated as *Draft*
-    4. *Note*: The Pull Request is created with some default values for the title and body (see [Variables](#2-variables))
-6. Check the Pull Request and if all *Checks* are successfull then make it *Ready for review*
+
+1. **Prerequisite**: Everything is synced: the `fork_main` branch is synced with the `upstream_main` branch which is synced with `upstream/main`
+2. **Prerequisite**: You need to have a GitHub account and a GitHub token
+3. Checkout a new branch from `fork_main` (e.g. `new-si-gsw-feature`) and start implementing the new feature
+4. When you think the new feature is done, create the Pull Request (see [Create the Pull Request](#5-create-the-pull-request))
+    1. The script checks if you already have a CaPyCLI fork in your GitHub account. If you don't, it will create one for you.
+    2. The `new-si-gsw-feature` branch will be pushed to your fork
+    3. The Pull Request will be created
+5. After the Pull Request is acceptedby the upstream Maintainers, pull the changes into `fork_main`
+
+- What happens if the Maintainers of the upstream require more from you (for example: more unit test coverage) ?
+    - Implement the required changes on the `new-si-gsw-feature` branch and push them to your GitHub repo. The changes will be reflected in the previously created Pull Request
+
+- What happens is the Maintainers of the upstream don't accept your Pull Request?
+    - You can merge your `new-si-gsw-feature` into `fork_main`
 
 ## 2. Variables
+
+TODO
 
 | Name | Default | Details |
 |------|---------|---------|
@@ -73,6 +74,8 @@ The following branches are relevant:
 
 ## 3. Relevant branches
 
+TODO
+
 ## 4. isort and flake8 in VSCode
 
 We need to ensure that the code we want to push to upstream has been analyzied by flake8 and isort.
@@ -82,6 +85,28 @@ We need to ensure that the code we want to push to upstream has been analyzied b
 
 *Note*: the isort settings are in the `.isort.cfg` and flake8 settings are in `tox.ini`
 *Note*: the exact calls to isort and flake8 are in `.github/workflows/static-checks.yml`
+
+## 5. Create the Pull Request
+
+### 5.1 From the command line
+
+TODO Execute `python -m utils.create_pull_request` from the root dir of this repo (see [Parameters](#54-parameters))
+
+### 5.2 From VSCode
+
+TODO
+
+### 5.3 From a Gitlab Pipeline
+
+TODO Push your branch to origin then configure and execute a Pipeline.
+
+### 5.4 Parameters
+
+TODO
+
+| Name | Type | Default | Details |
+|------|------|---------|---------|
+|||||
 
 
 # 3.
