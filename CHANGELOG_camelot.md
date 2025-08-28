@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2.9.14
+2025-08-28
+
+### Fixes
+
+- update tokens (c33e40ca5651f339d6bfdb185cfae998e01130c5)
+
 ## 2.9.13
 2025-08-21
 
