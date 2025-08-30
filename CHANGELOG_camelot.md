@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2.9.17
+2025-08-30
+
+### Fixes
+
+- manual sync with upstream (copy raw files) (c5b0777cf5cd46fe184918834c566848f03246f4)
+
 ## 2.9.16
 2025-08-30
 
