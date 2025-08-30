@@ -35,7 +35,7 @@
   This will only work properly if self-contained a build for a specific `rid` like `win-x64` has been
   done or the `dotnet publish` command has been used. Dependency detection if only done for `Release`
   builds and not for `Debug` builds.
-
+  
   The resulting SBOM also does not contain any analyzers, build, test or mocking packages that are
   not part of the final delivery.
 * New parameter `--search-meta-data` for `getdependencies nuget` to find the metadata for the components.

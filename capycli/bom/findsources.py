@@ -133,7 +133,7 @@ class FindSources(capycli.common.script_base.ScriptBase):
            encounter projects with tens of thousands of tags.
         """
         raise NotImplementedError(
-            "Removed with introduction of get_matchting_source_tag!")
+            "Removed with introduction of get_matching_source_tag!")
 
     def _get_github_repo(self, github_ref: str) -> Dict[str, Any]:
         """Fetch GitHub API object identified by @github_ref.
@@ -232,12 +232,14 @@ class FindSources(capycli.common.script_base.ScriptBase):
                     w_prefix = [w_prefix]
 
                 # ORDER BY tag-name-length DESC
-                by_size = sorted([(len(tag['ref']), tag) for tag in w_prefix if 'ref' in tag],
+                # Note: it may happen that the GithHubSupport.github_request
+                # returns items without 'ref'
+                by_size = sorted([(len(tag.get('ref', '')), tag) for tag in w_prefix],
                                  key=lambda x: x[0])
                 w_prefix = [itm[1] for itm in reversed(by_size)]
 
                 transformed_for_get_matching_tags = [
-                    {'name': tag['ref'].replace('refs/tags/', '', 1),
+                    {'name': tag.get('ref', '').replace('refs/tags/', '', 1),
                      'zipball_url': tag['url'].replace(
                         '/git/refs/tags/', '/zipball/refs/tags/', 1),
                      } for tag in w_prefix]
@@ -402,21 +404,22 @@ class FindSources(capycli.common.script_base.ScriptBase):
         for tag in tag_info:
             try:
                 if version_prefix:
-                    name = tag.get("name")
+                    name = tag.get("name", "")
                     if name and name.rpartition("/")[0] != version_prefix:
                         continue
 
                 version_diff = semver.VersionInfo.parse(
-                    self.to_semver_string(tag.get("name", None))).compare(
+                    self.to_semver_string(tag.get("name", ""))).compare(
                     self.to_semver_string(version))
             except Exception as e:
+                cname = e.__class__.__name__ if e.__class__ else ""
                 print(
                     Fore.LIGHTYELLOW_EX +
-                    "      Warning: semver.compare() threw " + e.__class__.__name__ +
+                    "      Warning: semver.compare() threw " + cname +
                     " Exception :" + github_url + " " + version +
-                    ", released version: " + tag.get("name", None)
+                    ", released version: " + tag.get("name", "")
                     + Style.RESET_ALL)
-                version_diff = 0 if tag.get("name", None) == version else 2
+                version_diff = 0 if tag.get("name", "") == version else 2
             # If versions are equal, version_diff shall be 0.
             # 1 and -1 have different meanings that doesn't be checked below
             if version_diff == 0:
@@ -692,7 +695,7 @@ class FindSources(capycli.common.script_base.ScriptBase):
             logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
 
         print_text(
-            "\n" + capycli.APP_NAME + ", " + capycli.get_app_version() +
+            "\n" + capycli.get_app_signature() +
             " - Go through the list of SBOM items and try to determine the source code.\n")
 
         if args.help:
