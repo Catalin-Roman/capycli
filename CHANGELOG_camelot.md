@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2.9.16
+2025-08-30
+
+### Fixes
+
+- manually update RELEASE_VERSION to 2.9.15 (37da8f80938f93798ef241fa26d76b88bea553ff)
+
 ## 2.6.0
 2025-08-29
 
