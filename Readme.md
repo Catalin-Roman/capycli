@@ -2,7 +2,6 @@
 # SPDX-FileCopyrightText: (c) 2018-2025 Siemens
 # SPDX-License-Identifier: MIT
 -->
-# <font color=#FF0000>!!! IMPORTANT !!!</font><br/>This is the Readme.md from upstream. Please take a look at what we documented [here](Readme_Fork_Maintenance.md).
 
 ![Header_Image](images/Github-social-capycli.png)
 
