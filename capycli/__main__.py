@@ -10,4 +10,5 @@
 """Module allowing for ``python -m CaPyCli ...``."""
 from capycli.main import cli
 
+# Main entry point for the CLI
 cli.main()
