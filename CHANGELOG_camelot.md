@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2.9.18
+2025-09-04
+
+### Fixes
+
+- use rebase instead of merge (0693d5722a89977991a6b314dbf1e4bc7767b9a9)
+
 ## 2.9.17
 2025-08-30
 
