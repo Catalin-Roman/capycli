@@ -26,12 +26,12 @@ The following branches are relevant:
 
 1. There is a pipeline scheduled once per week
 2. The weekly pipeline does the following:
-    1. Merge the `upstream/main` into `upstream_main`
-        1. The goal is to keep an exact copy of the upstream main branch
+    1. Rebase `upstream_main` on `upstream/main`
+        1. The goal is to keep an exact copy of the upstream `main` branch
         2. Note: without tags from upstream - would clober existing tags
         3. Note: we don't expect any conflicts at this stage
     2. Create a branch named `pull-from-upstream` from the `fork_main` branch
-    3. Merge `upstream_main` into `pull-from-upstream`
+    3. Rebase `pull-from-upstream` on `upstream_main`
         1. If there are conflicts then they should be fixed locally on this branch
     4. Push the `pull-from-upstream` branch to `origin/pull-from-upstream`
         1. The push happens regardless of conflicts
