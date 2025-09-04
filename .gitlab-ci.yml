@@ -57,13 +57,13 @@ pull:
     - git fetch upstream main -v
     - git status
     - git checkout upstream_main
-    - git merge upstream/main -v # we expect no conflicts
+    - git rebase upstream/main -v # we expect no conflicts
     - git log --oneline --decorate --graph --max-count 10
     - git push -o ci.skip -v
-    # Create the intermediate branch from fork_main and merge upstream_main into it
+    # Create the intermediate branch from fork_main and rebase it to upstream_main
     - git checkout -b ${PULL_BRANCH_NAME} origin/fork_main
     - git push origin ${PULL_BRANCH_NAME} --force -o ci.skip
-    - git merge upstream_main || echo "ERROR Merge failed, continuing anyway"
+    - git rebase upstream_main || echo "ERROR Rebase failed, continuing anyway"
     - |
       curl --request POST "https://code.siemens.com/api/v4/projects/399725/merge_requests" \
         --header "PRIVATE-TOKEN: ${GL_TOKEN}" \
