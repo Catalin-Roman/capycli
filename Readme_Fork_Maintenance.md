@@ -39,6 +39,22 @@ The following branches are relevant:
     5. Create a Merge Request from `pull-from-upstream` to `fork_main`
     6. If the Merge Request looks good, then Merge !
 
-# 3. Links
+# 3. Versioning
+
+The main decision drivers that led to switching from our SemVer scheme to the CalVer versioning
+convention were:
+- we must ensure that we are using the CaPyCLI version that is built by our fork (this project)
+- the upstream CaPyCLI is published to PyPI ([link](https://pypi.org/project/capycli/)) and PyPI is the primary source of packages
+- we can't change the name of the package we are building (e.g. from *capycli* to *capycli-camelot*) because this
+implies manual changes when creating Pull Request to upstream
+- keeping the same version for a package with the same name but different content is not an option
+- there is a time frame between the moment when we create the Pull Request and the moment it's accepted by
+the upstream maintainers (it's a manual job); even if it's accepted, the maintainers might not create a
+Release from it and thus no tag will be availale to us
+
+Based on the above, we will use the CalVer versioning with the "*year.counter*" flavour.
+
+
+# 4. Links
 
 Link to upstream (on GitHub): [CaPyCLI](https://github.com/sw360/capycli)
