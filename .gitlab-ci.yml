@@ -1,12 +1,12 @@
 include:
   - project: 'camelot/support/templates/gitlab-releases-ci-template'
-    ref: 'v2.2.2'
+    ref: 'v2.3.0'
     file: '/templates/changelog.and.releases.calver.yml'
   - project: 'camelot/support/templates/python-ci-template'
-    ref: 'v5.9.84'
+    ref: 'v5.9.87'
     file: '/templates/python.single.yml'
   - project: 'camelot/support/templates/python-ci-template'
-    ref: 'v5.9.84'
+    ref: 'v5.9.87'
     file: '/templates/python.publish.yml'
 
 
