@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.1.0-2
+2025-09-11
+
+### Fixes
+
+- create pull request (38b3a98df920b4d209236f13ca7f3122b33cfdbe)
+
 ## 2025.1.0-1
 2025-09-11
 
