@@ -2,6 +2,14 @@
 
 <!--- next entry here -->
 
+## 2025.1.0-1
+2025-09-11
+
+### Fixes
+
+- use CalVer versioning (db88b6b27669d9df0e76b4cfe5ef1bb09c383c39)
+- update templates versions (68e9a2d426dbee42a71dc3edff4d2ac3a5f9b4f0)
+
 ## 2.9.18
 2025-09-04
 
