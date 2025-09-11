@@ -4,7 +4,7 @@ include:
     file: '/templates/changelog.and.releases.calver.yml'
   - project: 'camelot/support/templates/python-ci-template'
     ref: 'v5.9.87'
-    file: '/templates/python.single.yml'
+    file: '/templates/python.schedule.yml'
   - project: 'camelot/support/templates/python-ci-template'
     ref: 'v5.9.87'
     file: '/templates/python.publish.yml'
@@ -31,25 +31,31 @@ stages:
   - pull-from-upstream
   - build
   - package
+  - kaniko:cr
+  - create-pull-request
   - test
   - swag
   - publish
   - release
 
-pull:
-  stage: pull-from-upstream
-  image: cr.siemens.com/camelot/support/container/gitlab-runner/curl:v0.12.20
-  before_script:
+.configure_proxy: &configure_proxy
   - export http_proxy=${CODE_PROXY}
   - export https_proxy=${CODE_PROXY}
   - export no_proxy=127.0.0.1,localhost,.siemens.de,.siemens.net,.siemens.com,.siemens.io,s3.dualstack.eu-central-1.amazonaws.com
+
+.configure_git: &configure_git
+  - git config --global user.email "${GIT_AUTOMATION_EMAIL}"
+  - git config --global user.name "${GIT_AUTOMATION_NAME}"
+  - git config --list | grep user
+
+pull:
+  stage: pull-from-upstream
+  image: cr.siemens.com/camelot/support/container/gitlab-runner/curl:v0.12.20
   script:
     # Configure git and check curl
     - echo "Syncing with upstream repository..."
-    - git config --global user.email "${GIT_AUTOMATION_EMAIL}"
-    - git config --global user.name "${GIT_AUTOMATION_NAME}"
-    - git config --list | grep user
-    - curl --version
+    - !reference [.configure_proxy]
+    - !reference [.configure_git]
     # Configure the remotes
     - git remote set-url origin https://${GIT_AUTOMATION_EMAIL}:${GL_TOKEN}@code.siemens.com/camelot/tools/capycli.git
     - git remote add upstream https://github.com/sw360/capycli.git
@@ -84,3 +90,124 @@ pull:
       when: always
   tags:
     - "$CI_RUNNER_TAG_SHARED"
+
+
+create-github-pull-request:
+  stage: create-pull-request
+  # image: cr.siemens.com/camelot/support/container/gitlab-runner/curl:v0.12.20
+  extends: .python_single_schedule
+  script:
+    - !reference [.configure_proxy]
+    - !reference [.configure_git]
+    - echo "Creating Pull Request from GitLab to GitHub..."
+    - env
+    - poetry env info
+    - git remote -v
+    - git remote set-url origin https://dummy_name:${GL_TOKEN}@code.siemens.com/camelot/tools/capycli.git
+    - git remote -v
+    - git fetch -v
+    - git status
+    # Checkout an existing branch so that we get rid of the detached HEAD state
+    - git checkout upstream_main
+    # TODO Replace with PULL_REQUEST_BRANCH
+    - git checkout new-si-gsw-feature
+    # TODO Replace with fork_main once we have the pull-from-upstream merged
+    - git checkout ${CI_COMMIT_REF_NAME}
+    # Show which variables are set by the pipeline
+    - |
+      echo "GITHUB_USERNAME: `[ "${GITHUB_USERNAME}" ] && echo ${GITHUB_USERNAME} || echo "Not set"`"
+      echo "GITHUB_PULL_REQUEST_TOKEN: `[ "${GITHUB_PULL_REQUEST_TOKEN}" ] && echo "Set" || echo "Not set"`"
+      echo "GITHUB_CONTENT_TOKEN: `[ "${GITHUB_CONTENT_TOKEN}" ] && echo "Set" || echo "Not set"`"
+      echo "PULL_REQUEST_BRANCH: `[ "${PULL_REQUEST_BRANCH}" ] && echo ${PULL_REQUEST_BRANCH} || echo "Not set"`"
+      echo "PULL_REQUEST_TITLE: `[ "${PULL_REQUEST_TITLE}" ] && echo ${PULL_REQUEST_TITLE} || echo "Not set"`"
+      echo "PULL_REQUEST_BODY: `[ "${PULL_REQUEST_BODY}" ] && echo ${ PULL_REQUEST_BODY} || echo "Not set"`"
+      echo "MY_GITHUB_REMOTE: `[ "${MY_GITHUB_REMOTE}" ] && echo ${MY_GITHUB_REMOTE} || echo "Not set"`"
+      echo "GITHUB_UPSTREAM_USERNAME: `[ "${GITHUB_UPSTREAM_USERNAME}" ] && echo ${GITHUB_UPSTREAM_USERNAME} || echo "Not set"`"
+      echo "GITHUB_UPSTREAM_REPO: `[ "${GITHUB_UPSTREAM_REPO}" ] && echo ${GITHUB_UPSTREAM_REPO} || echo "Not set"`"
+      echo "RESET_FILES: `[ "${RESET_FILES}" ] && echo ${RESET_FILES} || echo "Not set"`"
+      echo "REMOVE_FILES: `[ "${REMOVE_FILES}" ] && echo ${REMOVE_FILES} || echo "Not set"`"
+      echo "FORK_UPSTREAM_MAIN: `[ "${FORK_UPSTREAM_MAIN}" ] && echo ${FORK_UPSTREAM_MAIN} || echo "Not set"`"
+    # Convert pipeline variables to arguments for the script
+    - if [ ! -z "$GITHUB_USERNAME" ];
+      then
+      ARG_GITHUB_USERNAME="--github-username $GITHUB_USERNAME";
+      else
+      ARG_GITHUB_USERNAME="";
+      fi
+    - if [ ! -z "$GITHUB_PULL_REQUEST_TOKEN" ];
+      then
+      ARG_GITHUB_PULL_REQUEST_TOKEN="--github-pull-request-token $GITHUB_PULL_REQUEST_TOKEN";
+      else
+      ARG_GITHUB_PULL_REQUEST_TOKEN="";
+      fi
+    - if [ ! -z "$GITHUB_CONTENT_TOKEN" ];
+      then
+      ARG_GITHUB_CONTENT_TOKEN="--github-content-token $GITHUB_CONTENT_TOKEN";
+      else
+      ARG_GITHUB_CONTENT_TOKEN="";
+      fi
+    - if [ ! -z "$PULL_REQUEST_BRANCH" ];
+      then
+      ARG_PULL_REQUEST_BRANCH="--pull-request-branch $PULL_REQUEST_BRANCH";
+      else
+      ARG_PULL_REQUEST_BRANCH="";
+      fi
+    - if [ ! -z "$PULL_REQUEST_TITLE" ];
+      then
+      ARG_PULL_REQUEST_TITLE="--pull-request-title $PULL_REQUEST_TITLE";
+      else
+      ARG_PULL_REQUEST_TITLE="";
+      fi
+    - if [ ! -z "$PULL_REQUEST_BODY" ];
+      then
+      ARG_PULL_REQUEST_BODY="--pull-request-body $PULL_REQUEST_BODY";
+      else
+      ARG_PULL_REQUEST_BODY="";
+      fi
+    - if [ ! -z "$MY_GITHUB_REMOTE" ];
+      then
+      ARG_MY_GITHUB_REMOTE="--my-github-remote $MY_GITHUB_REMOTE";
+      else
+      ARG_MY_GITHUB_REMOTE="";
+      fi
+    - if [ ! -z "$GITHUB_UPSTREAM_USERNAME" ];
+      then
+      ARG_GITHUB_UPSTREAM_USERNAME="--github-upstream-username $GITHUB_UPSTREAM_USERNAME";
+      else
+      ARG_GITHUB_UPSTREAM_USERNAME="";
+      fi
+    - if [ ! -z "$GITHUB_UPSTREAM_REPO" ];
+      then
+      ARG_GITHUB_UPSTREAM_REPO="--github-upstream-repo $GITHUB_UPSTREAM_REPO";
+      else
+      ARG_GITHUB_UPSTREAM_REPO="";
+      fi
+    - if [ ! -z "$RESET_FILES" ];
+      then
+      ARG_RESET_FILES="--reset-files $RESET_FILES";
+      else
+      ARG_RESET_FILES="";
+      fi
+    - if [ ! -z "$REMOVE_FILES" ];
+      then
+      ARG_REMOVE_FILES="--remove-files $REMOVE_FILES";
+      else
+      ARG_REMOVE_FILES="";
+      fi
+    - if [ ! -z "$FORK_UPSTREAM_MAIN" ];
+      then
+      ARG_FORK_UPSTREAM_MAIN="--fork-upstream-main $FORK_UPSTREAM_MAIN";
+      else
+      ARG_FORK_UPSTREAM_MAIN="";
+      fi
+    - |
+      poetry run python -m utils.create_pull_request $ARG_GITHUB_USERNAME $ARG_GITHUB_PULL_REQUEST_TOKEN $ARG_GITHUB_CONTENT_TOKEN $ARG_PULL_REQUEST_BRANCH $ARG_PULL_REQUEST_TITLE $ARG_PULL_REQUEST_BODY $ARG_MY_GITHUB_REMOTE $ARG_GITHUB_UPSTREAM_USERNAME $ARG_GITHUB_UPSTREAM_REPO $ARG_RESET_FILES $ARG_REMOVE_FILES $ARG_FORK_UPSTREAM_MAIN
+  when: manual
+  tags:
+    - "$CI_RUNNER_TAG_SHARED"
+
+unittest:py310:
+  before_script:
+  - !reference [.python_single_test, before_script]
+  - echo "Add the 'utils' package to existing PYTEST_COV=${PYTEST_COV}" && PYTEST_COV="${PYTEST_COV} --cov utils"
+  - echo "PYTEST_COV=${PYTEST_COV}"
