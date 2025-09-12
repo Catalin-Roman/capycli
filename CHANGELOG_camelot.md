@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.2.0-1
+2025-09-12
+
+### Fixes
+
+- run unit tests in scheduled pipeline (77ddfcc740ccf91dc2427c0fa343ca711680f3ac)
+
 ## 2025.1.0
 2025-09-11
 
