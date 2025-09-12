@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.3.0-1
+2025-09-12
+
+### Fixes
+
+- expose artifacts; fix git configuration (2e49dcc96e59fd7c473de57f556fe690dbb2c13a)
+
 ## 2025.2.0
 2025-09-12
 
