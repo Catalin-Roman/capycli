@@ -3,10 +3,10 @@ include:
     ref: 'v2.3.0'
     file: '/templates/changelog.and.releases.calver.yml'
   - project: 'camelot/support/templates/python-ci-template'
-    ref: 'v5.9.87'
+    ref: 'v5.9.89'
     file: '/templates/python.schedule.yml'
   - project: 'camelot/support/templates/python-ci-template'
-    ref: 'v5.9.87'
+    ref: 'v5.9.89'
     file: '/templates/python.publish.yml'
 
 
@@ -54,7 +54,7 @@ stages:
 
 pull:
   stage: pull-from-upstream
-  image: cr.siemens.com/camelot/support/container/gitlab-runner/curl:v0.12.20
+  image: cr.siemens.com/camelot/support/container/gitlab-runner/curl:v0.12.27
   script:
     # Configure git and check curl
     - echo "Syncing with upstream repository..."
