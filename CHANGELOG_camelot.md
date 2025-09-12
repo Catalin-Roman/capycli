@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.5.0-1
+2025-09-12
+
+### Fixes
+
+- **deps:** update camelot-support (32a9dde3af4e4e29fe5462f4f022e82ddd55887c)
+
 ## 2025.4.0
 2025-09-12
 
