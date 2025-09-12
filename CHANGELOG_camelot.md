@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.6.0-1
+2025-09-12
+
+### Fixes
+
+- **deps:** pin python to 31551bd (864c8ea8d7039ba26aa709754c6b335f1b7d98a3)
+
 ## 2025.5.0
 2025-09-12
 
