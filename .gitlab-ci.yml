@@ -87,7 +87,7 @@ pull:
         }"
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: always
+      when: on_success
   tags:
     - "$CI_RUNNER_TAG_SHARED"
 
@@ -211,3 +211,11 @@ unittest:py310:
   - !reference [.python_single_test, before_script]
   - echo "Add the 'utils' package to existing PYTEST_COV=${PYTEST_COV}" && PYTEST_COV="${PYTEST_COV} --cov utils"
   - echo "PYTEST_COV=${PYTEST_COV}"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: on_success # unit tests are required by the "publish:*" jobs
+    - if: $DISABLE_PYTHON_UNITTEST == "True"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: never
+    - when: on_success
