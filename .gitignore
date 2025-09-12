@@ -58,3 +58,6 @@ CHANGELOG.md
 
 # The logs
 logs/
+
+# Re-include renovate.json
+!renovate.json
