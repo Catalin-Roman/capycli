@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.4.0-1
+2025-09-12
+
+### Fixes
+
+- enable Renovate (cf665d51de6ed9938719b4057d56ddf5db17ec04)
+
 ## 2025.3.0
 2025-09-12
 
