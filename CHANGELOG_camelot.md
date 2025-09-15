@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.11.0-1
+2025-09-15
+
+### Fixes
+
+- use URL-safe string for upstream (96dc7052b21ec0a1a9349cef4a6f45779df19bd6)
+
 ## 2025.10.0
 2025-09-15
 
