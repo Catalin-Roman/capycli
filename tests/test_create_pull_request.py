@@ -270,7 +270,8 @@ class TestGitHelper:
 
         assert result is True
         mocked_repo.create_remote.assert_called_with(args.my_github_remote,
-                                                     url=f"https://{args.github_username}:{args.github_content_token}@github.com/{git_helper.remote_short_name}.git")
+                                                     url=(f"https://{args.github_username}:{args.github_content_token}"
+                                                          f"@github.com/{git_helper.remote_short_name}.git"))
         mock_remote.push.assert_called()
 
     @patch('utils.create_pull_request.git_helper.Repo')
@@ -293,7 +294,8 @@ class TestGitHelper:
 
         assert result is False
         mocked_repo.create_remote.assert_called_with(args.my_github_remote,
-                                                     url=f"https://{args.github_username}:{args.github_content_token}@github.com/{git_helper.remote_short_name}.git")
+                                                     url=(f"https://{args.github_username}:{args.github_content_token}"
+                                                          f"@github.com/{git_helper.remote_short_name}.git"))
         mock_remote.push.assert_called()
 
     @patch('utils.create_pull_request.git_helper.Repo')
@@ -316,7 +318,8 @@ class TestGitHelper:
 
         assert result is False
         mocked_repo.create_remote.assert_called_with(args.my_github_remote,
-                                                     url=f"https://{args.github_username}:{args.github_content_token}@github.com/{git_helper.remote_short_name}.git")
+                                                     url=(f"https://{args.github_username}:{args.github_content_token}"
+                                                          f"@github.com/{git_helper.remote_short_name}.git"))
         mock_remote.push.assert_called()
 
     @patch('utils.create_pull_request.git_helper.Repo')
@@ -339,7 +342,8 @@ class TestGitHelper:
 
         assert result is False
         mocked_repo.create_remote.assert_called_with(args.my_github_remote,
-                                                     url=f"https://{args.github_username}:{args.github_content_token}@github.com/{git_helper.remote_short_name}.git")
+                                                     url=(f"https://{args.github_username}:{args.github_content_token}"
+                                                          f"@github.com/{git_helper.remote_short_name}.git"))
         mock_remote.push.assert_called()
 
     @patch('utils.create_pull_request.git_helper.Repo')
@@ -362,7 +366,8 @@ class TestGitHelper:
 
         assert result is False
         mocked_repo.create_remote.assert_called_with(args.my_github_remote,
-                                                     url=f"https://{args.github_username}:{args.github_content_token}@github.com/{git_helper.remote_short_name}.git")
+                                                     url=(f"https://{args.github_username}:{args.github_content_token}"
+                                                          f"@github.com/{git_helper.remote_short_name}.git"))
         mock_remote.push.assert_called()
 
     @patch('utils.create_pull_request.git_helper.Repo')
@@ -424,6 +429,56 @@ class TestGitHelper:
 
         assert result is False
 
+    @patch("utils.create_pull_request.git_helper.Repo")
+    def test_branch_exists_true(self, mocked_class_repo: MagicMock, args: Namespace, mocked_repo: MagicMock) -> None:
+        # Simulate remote refs containing the branch
+        ref = MagicMock()
+        ref.name = "myremote/feature-branch"
+        mocked_repo.remote.return_value.refs = [ref]
+        mocked_class_repo.return_value = mocked_repo
+
+        git_helper = GitHelper(args, IRRELEVANT)
+        git_helper.repo = mocked_repo
+
+        assert git_helper.branch_exists("feature-branch", "myremote") is True
+
+    @patch("utils.create_pull_request.git_helper.Repo")
+    def test_branch_exists_false_branch_not_found(self, mocked_class_repo: MagicMock, args: Namespace,
+                                                  mocked_repo: MagicMock) -> None:
+        # Simulate remote refs not containing the branch
+        ref = MagicMock()
+        ref.name = "myremote/other-branch"
+        mocked_repo.remote.return_value.refs = [ref]
+        mocked_class_repo.return_value = mocked_repo
+
+        git_helper = GitHelper(args, IRRELEVANT)
+        git_helper.repo = mocked_repo
+
+        assert git_helper.branch_exists("feature-branch", "myremote") is False
+
+    @patch("utils.create_pull_request.git_helper.Repo")
+    def test_branch_exists_empty_refs(self, mocked_class_repo: MagicMock, args: Namespace,
+                                      mocked_repo: MagicMock) -> None:
+        # Simulate remote refs being empty
+        mocked_repo.remote.return_value.refs = []
+        mocked_class_repo.return_value = mocked_repo
+
+        git_helper = GitHelper(args, IRRELEVANT)
+        git_helper.repo = mocked_repo
+
+        assert git_helper.branch_exists("feature-branch", "myremote") is False
+
+    @patch("utils.create_pull_request.git_helper.Repo")
+    def test_branch_exists_value_error(self, mocked_class_repo: MagicMock, args: Namespace,
+                                       mocked_repo: MagicMock) -> None:
+        # Simulate ValueError when accessing remote
+        mocked_repo.remote.side_effect = ValueError("Remote not found")
+        mocked_class_repo.return_value = mocked_repo
+
+        git_helper = GitHelper(args, IRRELEVANT)
+        git_helper.repo = mocked_repo
+
+        assert git_helper.branch_exists("feature-branch", "myremote") is False
 
 class TestGitHubHelper:
     @fixture
@@ -464,7 +519,8 @@ class TestGitHubHelper:
         assert github_helper.check_fork_exists() is True
 
     @patch("utils.create_pull_request.github_helper.requests.get")
-    def test_check_fork_exists_false_invalid_json(self, patched_requests_get: MagicMock, github_helper: GitHubHelper) -> None:
+    def test_check_fork_exists_false_invalid_json(self, patched_requests_get: MagicMock,
+                                                  github_helper: GitHubHelper) -> None:
         mocked_response = MagicMock()
         mocked_response.ok = True
         mocked_response.json.side_effect = requests.JSONDecodeError("Expecting value", "", 0)

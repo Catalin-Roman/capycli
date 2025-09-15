@@ -270,8 +270,10 @@ class GitHelper:
             # Handle [rejected] (non-fast-forward)
             # Why: we are doing a couple of commits (reset files, remove files) to achieve a clean Pull Request
             # so we need to rebase on top of the remote branch (same content, different commit history)
-            logger.info(f"Rebasing onto: {self.my_github_remote}/{self.pull_request_branch}")
-            self.git_cmd.rebase(f"{self.my_github_remote}/{self.pull_request_branch}")
+            # only if the branch exists in the remote
+            if self.branch_exists(self.pull_request_branch, created_remote.name):
+                logger.info(f"Rebasing onto: {self.my_github_remote}/{self.pull_request_branch}")
+                self.git_cmd.rebase(f"{self.my_github_remote}/{self.pull_request_branch}")
 
             logger.info(f"Pushing branch: {self.pull_request_branch} to remote: {created_remote.name}")
             push_result = created_remote.push(refspec=f"{self.pull_request_branch}:{self.pull_request_branch}")
@@ -301,3 +303,20 @@ class GitHelper:
             logger.info(f"Successfully deleted temporary remote: {deleted_remote}")
 
         return True
+
+    def branch_exists(self, branch_name: str, remote_name: str) -> bool:
+        """
+        Checks if the given branch exists in the given remote.
+        Args:
+            branch_name (str): The name of the branch to check.
+            remote (str): The name of the remote to check against.
+        """
+        try:
+            logger.info(f"Checking if branch: {branch_name} exists in remote: {remote_name}")
+            remote_refs = self.repo.remote(name=remote_name).refs
+            target_branch = f"{remote_name}/{branch_name}"
+
+            return any(ref.name == target_branch for ref in remote_refs)
+        except ValueError as e:
+            logger.error(e)
+            return False
