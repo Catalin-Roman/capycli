@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.8.0-1
+2025-09-15
+
+### Fixes
+
+- update the files to be reset or removed (13016b30ca3c195c64709c662c59d02c868cdbf4)
+
 ## 2025.7.0
 2025-09-15
 
