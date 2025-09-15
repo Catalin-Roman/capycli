@@ -61,6 +61,7 @@ pull:
     - !reference [.configure_proxy]
     - !reference [.configure_git]
     # Configure the remotes
+    - echo "Replacing @ with %40 in the email address for URL usage" && GIT_AUTOMATION_EMAIL="${GIT_AUTOMATION_EMAIL//@/%40}" && echo "GIT_AUTOMATION_EMAIL=${GIT_AUTOMATION_EMAIL}"
     - git remote set-url origin https://${GIT_AUTOMATION_EMAIL}:${GL_TOKEN}@code.siemens.com/camelot/tools/capycli.git
     - git remote add upstream https://github.com/sw360/capycli.git
     - git remote set-url upstream https://${GIT_AUTOMATION_EMAIL}:${GITHUB_COM_TOKEN}@github.com/sw360/capycli.git
