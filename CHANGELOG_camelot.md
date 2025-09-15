@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.7.0-1
+2025-09-15
+
+### Fixes
+
+- **deps:** update python to abc799c (d91b70add631c0cccac0e4788a755575d27d3416)
+
 ## 2025.6.0
 2025-09-12
 
