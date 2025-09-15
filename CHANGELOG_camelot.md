@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.10.0-1
+2025-09-15
+
+### Fixes
+
+- rebase only if branch exists on remote (bf889c04169fa3814d6dc9bcdbc602b248254cba)
+
 ## 2025.9.0
 2025-09-15
 
