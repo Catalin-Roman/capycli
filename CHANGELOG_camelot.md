@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.9.0-1
+2025-09-15
+
+### Fixes
+
+- **deps:** update pytest to v7.4.4 (4a9d0f57c96939e967e4b5106fed25041ccd4ca9)
+
 ## 2025.8.0
 2025-09-15
 
