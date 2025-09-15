@@ -137,8 +137,8 @@ The following table contains the list of parameters supported by the script.
 | `--my-github-remote` | `MY_GITHUB_REMOTE` | No | `my_github_remote` | The name of the GitHub remote to use for pushing changes |
 | `--github-upstream-username` | `GITHUB_UPSTREAM_USERNAME` | No | `sw360` | The username of the upstream CaPyCLI repository |
 | `--github-upstream-repo` | `GITHUB_UPSTREAM_REPO` | No | `capycli` | The name of the upstream CaPyCLI repository |
-| `--reset-files` | `RESET_FILES` | No | `.gitignore`, `Readme.md`, `pyproject.toml`, `poetry.lock` | Space-separated list of files to be reset to the upstream version |
-| `--remove-files` | `REMOVE_FILES` | No | `.gitlab-ci.yml`, `.gitlab/merge_request_templates/Merge Request.md`, `.pre-commit-config.yaml`, `CHANGELOG_camelot.md`, `Readme_Fork_Maintenance.md`, `release_info` | Space-separated list of files to remove from the repository |
+| `--reset-files` | `RESET_FILES` | No | `.gitignore`, `Readme.md`, `pyproject.toml`, `poetry.lock`, `Dockerfile` | Space-separated list of files to be reset to the upstream version |
+| `--remove-files` | `REMOVE_FILES` | No | `.gitlab-ci.yml`, `.gitlab/merge_request_templates/Merge Request.md`, `.pre-commit-config.yaml`, `CHANGELOG_camelot.md`, `Readme_Fork_Maintenance.md`, `release_info`, `renovate.json`, `tests/test_create_pull_request.py`, `utils/create_pull_request/*` | Space-separated list of files to remove from the repository |
 | `--fork-upstream-main` | `FORK_UPSTREAM_MAIN` | No | `upstream_main` | The name of the branch inside our fork which tracks (is a 1:1 copy of) the upstream `main` branch |
 
 ## 4. Unit tests

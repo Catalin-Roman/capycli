@@ -63,20 +63,27 @@ def parse_cli_arguments() -> argparse.Namespace:
     parser.add_argument('--reset-files',
                         required=False,
                         nargs='*',
-                        default=['.gitignore', 'Readme.md', 'pyproject.toml', 'poetry.lock'],
+                        default=['.gitignore', 'Readme.md', 'pyproject.toml', 'poetry.lock', 'Dockerfile'],
                         help=("Space-separated list of files to be reset to the upstream version. "
-                              "Defaults to '.gitignore', 'Readme.md', 'pyproject.toml', 'poetry.lock' "
+                              "Defaults to '.gitignore', 'Readme.md', 'pyproject.toml', 'poetry.lock', 'Dockerfile' "
                               "if not specified."))
     parser.add_argument('--remove-files',
                         required=False,
                         nargs='*',
-                        default=['.gitlab-ci.yml', '.gitlab/merge_request_templates/Merge Request.md',
-                                 '.pre-commit-config.yaml', 'CHANGELOG_camelot.md',
-                                 'Readme_Fork_Maintenance.md', 'release_info'],
+                        default=['.gitlab-ci.yml',
+                                 '.gitlab/merge_request_templates/Merge Request.md',
+                                 '.pre-commit-config.yaml',
+                                 'CHANGELOG_camelot.md',
+                                 'Readme_Fork_Maintenance.md',
+                                 'release_info',
+                                 'renovate.json',
+                                 'tests/test_create_pull_request.py',
+                                 'utils/create_pull_request/*'],
                         help=("Comma-separated list of files to remove from the repository. "
                               "Defaults to '.gitlab-ci.yml', '.gitlab/merge_request_templates/Merge Request.md', "
                               "'.pre-commit-config.yaml', 'CHANGELOG_camelot.md', 'Readme_Fork_Maintenance.md', "
-                              "'release_info' if not specified."))
+                              "'release_info', 'renovate.json', 'tests/test_create_pull_request.py', "
+                              "'utils/create_pull_request/*' if not specified."))
     parser.add_argument('--fork-upstream-main',
                         required=False,
                         default='upstream_main',

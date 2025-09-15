@@ -629,11 +629,16 @@ class TestMainFunction:
         assert args.my_github_remote == "my_github_remote"
         assert args.github_upstream_username == "sw360"
         assert args.github_upstream_repo == "capycli"
-        assert args.reset_files == ['.gitignore', 'Readme.md', 'pyproject.toml', 'poetry.lock']
+        assert args.reset_files == ['.gitignore', 'Readme.md', 'pyproject.toml', 'poetry.lock', 'Dockerfile']
         assert args.remove_files == [
-            '.gitlab-ci.yml', '.gitlab/merge_request_templates/Merge Request.md',
-            '.pre-commit-config.yaml', 'CHANGELOG_camelot.md',
-            'Readme_Fork_Maintenance.md', 'release_info'
+            '.gitlab-ci.yml',
+            '.gitlab/merge_request_templates/Merge Request.md',
+            '.pre-commit-config.yaml',
+            'CHANGELOG_camelot.md',
+            'Readme_Fork_Maintenance.md',
+            'release_info',
+            'renovate.json',
+            'tests/test_create_pull_request.py', 'utils/create_pull_request/*'
         ]
         assert args.fork_upstream_main == "upstream_main"
 

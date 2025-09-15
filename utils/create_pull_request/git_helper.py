@@ -152,7 +152,7 @@ class GitHelper:
         and rebases the branch onto the upstream_main branch.
         Steps performed:
             1. Checks out the pull request branch.
-            2. Removes each file .
+            2. Removes each file or directory.
             3. Sets the environment variable to allow committing without a pre-commit config file.
             4. Commits the file removals.
             5. Rebases the branch onto upstream_main.
@@ -173,6 +173,20 @@ class GitHelper:
             return False
 
         for file in self.files_to_remove:
+            if file.endswith("/*"):
+                dir_path = file[:-2]  # Remove the '/*' to get the directory path
+                if not Path(dir_path).is_dir():
+                    logger.info(f"Directory: {dir_path} does not exist. Skipping removal.")
+                    continue
+
+                try:
+                    logger.info(f"Removing all files in directory: {dir_path}")
+                    self.git_cmd.rm("-r", dir_path)
+                except GitCommandError as e:
+                    logger.error(e)
+                    return False
+                continue
+
             if not Path(file).exists():
                 logger.info(f"File: {file} does not exist. Skipping removal.")
                 continue
