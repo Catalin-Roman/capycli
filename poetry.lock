@@ -221,14 +221,14 @@ files = [
 
 [[package]]
 name = "cli-support"
-version = "2.0.1"
+version = "2.0.2"
 description = "Support component license information (CLI) files"
 optional = false
 python-versions = "<4.0,>=3.8"
 groups = ["main"]
 files = [
-    {file = "cli_support-2.0.1-py3-none-any.whl", hash = "sha256:f9f429b0169b61452fe9436f51a7ad7db2423aaeb44d8116d6695c8f1e04363d"},
-    {file = "cli_support-2.0.1.tar.gz", hash = "sha256:19034558dc7c830eaeb15f18452e16568b431e14bc74b51233911412639aa724"},
+    {file = "cli_support-2.0.2-py3-none-any.whl", hash = "sha256:f56759f129e2b204f0e84de2dc1ff0a7e1f9187d5d88f0b4e528e9d3acd7f080"},
+    {file = "cli_support-2.0.2.tar.gz", hash = "sha256:5908aeb1fd1c66de6a0de40e10bb2a5cfb54114d928d9b40c478ec8423ddf499"},
 ]
 
 [[package]]
@@ -1893,4 +1893,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "41fae0ca8585b558a424b331919da5c04f4d4df48832928fcae1d3c59846826d"
+content-hash = "5e96ef30a470dd45e9789004659cde0bd9ead2c42b17b16d72ab21d821d933ba"
