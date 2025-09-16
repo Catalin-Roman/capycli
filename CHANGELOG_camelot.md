@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.14.0-1
+2025-09-16
+
+### Fixes
+
+- **deps:** update types-requests to v2.32.4.20250913 (f32b36cd2bf04f1feefe6e5d43bfba005028420d)
+
 ## 2025.13.0
 2025-09-16
 
