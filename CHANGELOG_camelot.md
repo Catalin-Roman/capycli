@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.13.0-1
+2025-09-16
+
+### Fixes
+
+- **deps:** update packageurl-python to ^0.17.0 (5737daa033f94231639b0afe150e969f6ffc9908)
+
 ## 2025.12.0
 2025-09-16
 
