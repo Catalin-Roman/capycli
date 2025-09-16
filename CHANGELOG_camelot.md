@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.14.0-2
+2025-09-16
+
+### Fixes
+
+- **deps:** update responses to v0.25.8 (1a478b85f9b500e62ff937427d7cc5c53d6cfa63)
+
 ## 2025.14.0-1
 2025-09-16
 
