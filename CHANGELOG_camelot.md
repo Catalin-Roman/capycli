@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.14.0-6
+2025-09-16
+
+### Fixes
+
+- **deps:** update cli-support to v2.0.2 (c29381165f5d1a4d4f73bc16a0f8b8bd6fefc13c)
+
 ## 2025.14.0-5
 2025-09-16
 
