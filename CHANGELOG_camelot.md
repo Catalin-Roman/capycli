@@ -2,6 +2,14 @@
 
 <!--- next entry here -->
 
+## 2025.12.0-2
+2025-09-16
+
+### Fixes
+
+- **deps:** update requirements-parser to v0.13.0 (66b6c8f40c265ab34e1fcc84697059da0dd4af84)
+- fix poetry.lock after renovate/requirements-parser-0.x (75283e9ec5d5d7b9f71c88384da1705f65cd56f0)
+
 ## 2025.12.0-1
 2025-09-15
 
