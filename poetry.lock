@@ -1246,19 +1246,18 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "requirements-parser"
-version = "0.11.0"
+version = "0.13.0"
 description = "This is a small Python module for parsing Pip requirement files."
 optional = false
 python-versions = "<4.0,>=3.8"
 groups = ["main"]
 files = [
-    {file = "requirements_parser-0.11.0-py3-none-any.whl", hash = "sha256:50379eb50311834386c2568263ae5225d7b9d0867fb55cf4ecc93959de2c2684"},
-    {file = "requirements_parser-0.11.0.tar.gz", hash = "sha256:35f36dc969d14830bf459803da84f314dc3d17c802592e9e970f63d0359e5920"},
+    {file = "requirements_parser-0.13.0-py3-none-any.whl", hash = "sha256:2b3173faecf19ec5501971b7222d38f04cb45bb9d87d0ad629ca71e2e62ded14"},
+    {file = "requirements_parser-0.13.0.tar.gz", hash = "sha256:0843119ca2cb2331de4eb31b10d70462e39ace698fd660a915c247d2301a4418"},
 ]
 
 [package.dependencies]
 packaging = ">=23.2"
-types-setuptools = ">=69.1.0"
 
 [[package]]
 name = "responses"
@@ -1655,18 +1654,6 @@ files = [
 types-urllib3 = "*"
 
 [[package]]
-name = "types-setuptools"
-version = "80.9.0.20250529"
-description = "Typing stubs for setuptools"
-optional = false
-python-versions = ">=3.9"
-groups = ["main"]
-files = [
-    {file = "types_setuptools-80.9.0.20250529-py3-none-any.whl", hash = "sha256:00dfcedd73e333a430e10db096e4d46af93faf9314f832f13b6bbe3d6757e95f"},
-    {file = "types_setuptools-80.9.0.20250529.tar.gz", hash = "sha256:79e088ba0cba2186c8d6499cbd3e143abb142d28a44b042c28d3148b1e353c91"},
-]
-
-[[package]]
 name = "types-urllib3"
 version = "1.26.25.14"
 description = "Typing stubs for urllib3"
@@ -1906,4 +1893,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "82697735f7e50322ad7c74c2942461f7a8f3adb6df2305382490a4a628b15538"
+content-hash = "29f0689d4c93dae7ce2d35784041c9581a140bdf2953579cb71f38d5b410b09d"
