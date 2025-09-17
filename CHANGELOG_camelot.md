@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.15.0-1
+2025-09-17
+
+### Fixes
+
+- **deps:** update pylint to v3 (13b467884c07c5e63a1384c974fafa62552e265a)
+
 ## 2025.14.0
 2025-09-16
 
