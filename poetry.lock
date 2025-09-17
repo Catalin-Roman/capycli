@@ -228,14 +228,14 @@ files = [
 
 [[package]]
 name = "cli-test-helpers"
-version = "3.5.0"
+version = "4.1.0"
 description = "Useful helpers for writing tests for your Python CLI program."
 optional = false
-python-versions = "*"
+python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "cli-test-helpers-3.5.0.tar.gz", hash = "sha256:86d5dea5b4fee4767cd87ff26eb709ad06764545e0fa348bace735247054b23e"},
-    {file = "cli_test_helpers-3.5.0-py3-none-any.whl", hash = "sha256:e05359625f9134d20df284bc32dd7e1002925945fe7ff0912351e6b08f55cee8"},
+    {file = "cli_test_helpers-4.1.0-py3-none-any.whl", hash = "sha256:1a5308842e929e2c70dbb446be1b05f235dd09a896256bbb0bac7bdd89bae88e"},
+    {file = "cli_test_helpers-4.1.0.tar.gz", hash = "sha256:317a642087f2b86d04ffa279200492d186d103284d082ff20a0287223409351e"},
 ]
 
 [[package]]
@@ -1801,4 +1801,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "08afb6abb26aa94ecf5b5760af741ae241d53fe1d22964eff266021f2ed24ea4"
+content-hash = "b93c0f793d468283b47d1c8f3b16b13600cd66495002d0cd6dcf4fc00d574cc5"
