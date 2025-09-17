@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.15.0-4
+2025-09-17
+
+### Fixes
+
+- **deps:** update cli-test-helpers to v4 (35f441a9b8c7fe3d5f152941eee31bc0d27ea4d2)
+
 ## 2025.15.0-3
 2025-09-17
 
