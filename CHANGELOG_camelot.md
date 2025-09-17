@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.15.0-3
+2025-09-17
+
+### Fixes
+
+- **deps:** update coverage to v7 (37462a6efd830257e8b8708afee84711a9beba37)
+
 ## 2025.15.0-2
 2025-09-17
 
