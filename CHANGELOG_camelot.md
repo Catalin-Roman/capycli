@@ -2,6 +2,13 @@
 
 <!--- next entry here -->
 
+## 2025.15.0-2
+2025-09-17
+
+### Fixes
+
+- **deps:** update isort to v6 (16c6510c3f0d8fe596e411943ae127f8453df3d4)
+
 ## 2025.15.0-1
 2025-09-17
 
